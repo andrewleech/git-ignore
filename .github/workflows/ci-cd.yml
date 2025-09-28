@@ -40,12 +40,7 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --dev
-
-    - name: Debug UV environment
-      run: |
-        uv --version
-        uv pip list
-        ls -la .venv/bin/ || echo "No .venv/bin found"
+        uv pip install ruff pytest pytest-cov
 
     - name: Lint with ruff
       run: |
