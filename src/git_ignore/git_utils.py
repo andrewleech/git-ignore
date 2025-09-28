@@ -1,6 +1,6 @@
 """Git repository utilities for path detection and resolution."""
 
-import subprocess
+import subprocess  # nosec B404
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -24,7 +24,7 @@ def _run_git_command(args: list[str], timeout: float = 5.0) -> str:
         GitError: If git command fails or git is not found
     """
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             args,
             capture_output=True,
             text=True,
@@ -109,7 +109,7 @@ def get_global_gitignore_path() -> Optional[Path]:
     """
     # Try to get configured global gitignore
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603,B607
             ["git", "config", "--global", "core.excludesfile"],
             capture_output=True,
             text=True,

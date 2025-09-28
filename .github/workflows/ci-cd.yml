@@ -89,7 +89,7 @@ jobs:
 
     - name: Check package metadata
       run: |
-        uv run python -m pip install twine
+        uv pip install twine
         uv run twine check dist/*
 
     - name: Upload build artifacts
