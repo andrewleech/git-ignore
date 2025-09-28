@@ -339,7 +339,8 @@ class TestValidateIgnorePatterns:
         """Test warning for very broad patterns."""
         patterns = ["*", "**", "/"]
         issues = validate_ignore_patterns(patterns)
-        assert len(issues) == 4  # / triggers both trailing slash and broad pattern warnings
+        # / triggers both trailing slash and broad pattern warnings
+        assert len(issues) == 4
         broad_warnings = [i for i in issues if "very broad" in i.message]
         assert len(broad_warnings) == 3
         for issue in broad_warnings:
