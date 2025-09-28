@@ -20,14 +20,25 @@ A command-line tool for easily adding patterns to git ignore files. Supports add
 
 ### From PyPI (recommended)
 
+**With uv (fastest and most reliable):**
+```bash
+uv tool install git-ignore
+```
+
+**With pip:**
 ```bash
 pip install git-ignore
+```
+
+**With pipx (isolated installation):**
+```bash
+pipx install git-ignore
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/user/git-ignore.git
+git clone https://github.com/andrewleech/git-ignore.git
 cd git-ignore
 pip install -e .
 ```
@@ -35,7 +46,7 @@ pip install -e .
 ### Using uv (for development)
 
 ```bash
-git clone https://github.com/user/git-ignore.git
+git clone https://github.com/andrewleech/git-ignore.git
 cd git-ignore
 uv sync --dev
 ```
