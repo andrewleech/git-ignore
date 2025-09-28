@@ -89,6 +89,7 @@ jobs:
 
     - name: Check package metadata
       run: |
+        uv sync --dev
         uv pip install twine
         uv run twine check dist/*
 
