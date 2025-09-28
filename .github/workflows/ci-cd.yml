@@ -41,13 +41,19 @@ jobs:
       run: |
         uv sync --dev
 
+    - name: Debug UV environment
+      run: |
+        uv --version
+        uv pip list
+        ls -la .venv/bin/ || echo "No .venv/bin found"
+
     - name: Lint with ruff
       run: |
-        uv run ruff check .
+        uv run python -m ruff check .
 
     - name: Format check with ruff
       run: |
-        uv run ruff format --check .
+        uv run python -m ruff format --check .
 
     - name: Run unit tests
       run: |
