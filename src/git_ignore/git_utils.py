@@ -109,14 +109,13 @@ def get_global_gitignore_path() -> Optional[Path]:
     """
     # Try to get configured global gitignore
     try:
-        # nosec B603,B607 - Safe git config call with hardcoded arguments
         result = subprocess.run(
             ["git", "config", "--global", "core.excludesfile"],
             capture_output=True,
             text=True,
             check=True,
             timeout=5.0,
-        )
+        )  # nosec B603 B607
         path_str = result.stdout.strip()
         if path_str:
             path = Path(path_str).expanduser()
