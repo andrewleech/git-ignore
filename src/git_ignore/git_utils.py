@@ -131,6 +131,7 @@ def get_global_gitignore_path() -> Optional[Path]:
 
     # Check default locations
     import os
+
     xdg_config = os.environ.get("XDG_CONFIG_HOME")
     if xdg_config:
         default_path = Path(xdg_config) / "git" / "ignore"

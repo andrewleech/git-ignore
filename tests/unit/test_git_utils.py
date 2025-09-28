@@ -139,12 +139,17 @@ class TestGetGitDir:
         result = get_git_dir()
 
         assert result == Path("/path/to/.git")
-        mock_run_command.assert_called_once_with(["git", "rev-parse", "--absolute-git-dir"])
+        mock_run_command.assert_called_once_with(
+            ["git", "rev-parse", "--absolute-git-dir"]
+        )
         mock_validate.assert_called_once_with(Path("/path/to/.git"))
 
     @patch("git_ignore.git_utils._run_git_command")
     def test_git_error_propagated(self, mock_run_command):
         """Test that GitError from _run_git_command is propagated."""
+        # Clear any cached values first
+        get_git_dir.cache_clear()
+
         mock_run_command.side_effect = GitError("test error")
 
         with pytest.raises(GitError, match="test error"):
@@ -180,12 +185,17 @@ class TestGetRepoRoot:
         result = get_repo_root()
 
         assert result == Path("/path/to/repo")
-        mock_run_command.assert_called_once_with(["git", "rev-parse", "--show-toplevel"])
+        mock_run_command.assert_called_once_with(
+            ["git", "rev-parse", "--show-toplevel"]
+        )
         mock_validate.assert_called_once_with(Path("/path/to/repo"))
 
     @patch("git_ignore.git_utils._run_git_command")
     def test_git_error_propagated(self, mock_run_command):
         """Test that GitError from _run_git_command is propagated."""
+        # Clear any cached values first
+        get_repo_root.cache_clear()
+
         mock_run_command.side_effect = GitError("test error")
 
         with pytest.raises(GitError, match="test error"):
@@ -229,9 +239,11 @@ class TestGetGlobalGitignorePath:
         """Test with configured relative path that gets resolved."""
         mock_run.return_value = Mock(stdout="gitignore\n")
 
-        with patch.object(Path, "expanduser") as mock_expanduser, \
-             patch.object(Path, "is_absolute", return_value=False), \
-             patch.object(Path, "resolve", return_value=Path("/resolved/gitignore")):
+        with (
+            patch.object(Path, "expanduser") as mock_expanduser,
+            patch.object(Path, "is_absolute", return_value=False),
+            patch.object(Path, "resolve", return_value=Path("/resolved/gitignore")),
+        ):
             mock_expanduser.return_value = Path("gitignore")
 
             result = get_global_gitignore_path()
@@ -239,7 +251,8 @@ class TestGetGlobalGitignorePath:
             assert result == Path("/resolved/gitignore")
 
     @patch("git_ignore.git_utils.subprocess.run")
-    def test_timeout_error(self, mock_run):
+    @patch("pathlib.Path.exists", return_value=False)
+    def test_timeout_error(self, mock_exists, mock_run):
         """Test timeout error is handled gracefully."""
         mock_run.side_effect = subprocess.TimeoutExpired(["git"], 5.0)
 
@@ -252,8 +265,10 @@ class TestGetGlobalGitignorePath:
         """Test XDG_CONFIG_HOME default path."""
         mock_run.side_effect = subprocess.CalledProcessError(1, ["git"])
 
-        with patch.dict(os.environ, {"XDG_CONFIG_HOME": "/custom/config"}), \
-             patch.object(Path, "exists", return_value=True) as mock_exists:
+        with (
+            patch.dict(os.environ, {"XDG_CONFIG_HOME": "/custom/config"}),
+            patch.object(Path, "exists", return_value=True) as mock_exists,
+        ):
             result = get_global_gitignore_path()
 
         assert result == Path("/custom/config/git/ignore")
@@ -265,9 +280,11 @@ class TestGetGlobalGitignorePath:
         """Test ~/.config/git/ignore default path."""
         mock_run.side_effect = subprocess.CalledProcessError(1, ["git"])
 
-        with patch.dict(os.environ, {"XDG_CONFIG_HOME": ""}), \
-             patch.object(Path, "home", return_value=Path("/home/user")), \
-             patch.object(Path, "exists", return_value=True) as mock_exists:
+        with (
+            patch.dict(os.environ, {"XDG_CONFIG_HOME": ""}),
+            patch.object(Path, "home", return_value=Path("/home/user")),
+            patch.object(Path, "exists", return_value=True) as mock_exists,
+        ):
             result = get_global_gitignore_path()
 
         assert result == Path("/home/user/.config/git/ignore")

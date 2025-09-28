@@ -15,6 +15,7 @@ class IgnoreError(Exception):
 
 class PatternSeverity(Enum):
     """Severity levels for pattern validation issues."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -22,6 +23,7 @@ class PatternSeverity(Enum):
 
 class PatternIssue(NamedTuple):
     """Represents a pattern validation issue."""
+
     pattern: str
     severity: PatternSeverity
     message: str
@@ -59,7 +61,7 @@ def _validate_file_path(file_path: Path, base_dir: Path = None) -> None:
             except ValueError:
                 raise IgnoreError(
                     f"Path {file_path} is outside allowed directory {base_dir}",
-                    recoverable=False
+                    recoverable=False,
                 ) from None
     except OSError as e:
         raise IgnoreError(
@@ -125,8 +127,7 @@ def write_ignore_patterns(
         file_path.parent.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         raise IgnoreError(
-            f"Failed to create directory {file_path.parent}: {e}",
-            recoverable=True
+            f"Failed to create directory {file_path.parent}: {e}", recoverable=True
         ) from e
 
     try:
@@ -134,9 +135,12 @@ def write_ignore_patterns(
         with file_path.open(mode, encoding="utf-8", newline="\n") as f:
             # Handle newline for append mode more safely
             if append and file_path.stat().st_size > 0:
-                # Always add a newline when appending to non-empty file
-                # This avoids the race condition from checking file content
-                f.write("\n")
+                # Check if file ends with newline by reading the last character
+                with file_path.open("rb") as check_f:
+                    check_f.seek(-1, 2)
+                    last_char = check_f.read(1)
+                    if last_char != b"\n":
+                        f.write("\n")
 
             for pattern in sanitized_patterns:
                 f.write(f"{pattern}\n")
@@ -199,50 +203,64 @@ def validate_ignore_patterns(patterns: list[str]) -> list[PatternIssue]:
 
         # Check for patterns that contain problematic characters
         if "\n" in original_pattern or "\r" in original_pattern:
-            issues.append(PatternIssue(
-                original_pattern,
-                PatternSeverity.ERROR,
-                "Pattern contains newline characters which will corrupt the ignore file"
-            ))
+            issues.append(
+                PatternIssue(
+                    original_pattern,
+                    PatternSeverity.ERROR,
+                    "Pattern contains newline characters which will corrupt the "
+                    "ignore file",
+                )
+            )
 
         # Check for common issues
         if pattern.startswith("/") and pattern.endswith("/"):
-            issues.append(PatternIssue(
-                pattern,
-                PatternSeverity.INFO,
-                "Pattern has leading and trailing slashes - might be too restrictive"
-            ))
+            issues.append(
+                PatternIssue(
+                    pattern,
+                    PatternSeverity.INFO,
+                    "Pattern has leading and trailing slashes - might be too "
+                    "restrictive",
+                )
+            )
 
         if pattern.count("**") > 1:
-            issues.append(PatternIssue(
-                pattern,
-                PatternSeverity.WARNING,
-                "Pattern has multiple '**' which may not work as expected"
-            ))
+            issues.append(
+                PatternIssue(
+                    pattern,
+                    PatternSeverity.WARNING,
+                    "Pattern has multiple '**' which may not work as expected",
+                )
+            )
 
         if pattern.startswith("./"):
-            issues.append(PatternIssue(
-                pattern,
-                PatternSeverity.INFO,
-                "Pattern starts with './' which is redundant"
-            ))
+            issues.append(
+                PatternIssue(
+                    pattern,
+                    PatternSeverity.INFO,
+                    "Pattern starts with './' which is redundant",
+                )
+            )
 
         # Check for potentially dangerous patterns
         dangerous_patterns = ["*", "**", "/"]
         if pattern in dangerous_patterns:
-            issues.append(PatternIssue(
-                pattern,
-                PatternSeverity.WARNING,
-                "Pattern is very broad and may ignore more than intended"
-            ))
+            issues.append(
+                PatternIssue(
+                    pattern,
+                    PatternSeverity.WARNING,
+                    "Pattern is very broad and may ignore more than intended",
+                )
+            )
 
         # Check for patterns that might ignore important files
         if pattern in [".git", ".gitignore", "README*", "LICENSE*"]:
-            issues.append(PatternIssue(
-                pattern,
-                PatternSeverity.WARNING,
-                "Pattern might ignore important project files"
-            ))
+            issues.append(
+                PatternIssue(
+                    pattern,
+                    PatternSeverity.WARNING,
+                    "Pattern might ignore important project files",
+                )
+            )
 
     return issues
 
@@ -265,9 +283,16 @@ def ensure_info_exclude_exists(exclude_file_path: Path) -> None:
             with exclude_file_path.open("w", encoding="utf-8") as f:
                 f.write("# git ls-files --others --exclude-from=.git/info/exclude\n")
                 f.write("# Lines that start with '#' are comments.\n")
-                f.write("# For a project mostly in C, the following would be a good set of\n")
-                f.write("# exclude patterns (uncomment them if you want to use them):\n")
+                f.write(
+                    "# For a project mostly in C, the following would be a good "
+                    "set of\n"
+                )
+                f.write(
+                    "# exclude patterns (uncomment them if you want to use them):\n"
+                )
                 f.write("# *.[oa]\n")
                 f.write("# *~\n")
     except OSError as e:
-        raise IgnoreError(f"Failed to initialize exclude file {exclude_file_path}: {e}") from e
+        raise IgnoreError(
+            f"Failed to initialize exclude file {exclude_file_path}: {e}"
+        ) from e

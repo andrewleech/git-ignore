@@ -209,7 +209,9 @@ class TestDisplayValidationIssues:
     @patch("sys.stderr")
     def test_error_issues(self, mock_stderr):
         """Test display of error issues."""
-        issues = [PatternIssue("bad\npattern", PatternSeverity.ERROR, "Contains newlines")]
+        issues = [
+            PatternIssue("bad\npattern", PatternSeverity.ERROR, "Contains newlines")
+        ]
         display_validation_issues(issues)
         mock_stderr.write.assert_called()
 
@@ -321,8 +323,14 @@ class TestRunIgnoreOperation:
     @patch("git_ignore.main.display_validation_issues")
     @patch("git_ignore.main.validate_patterns_and_get_issues")
     @patch("sys.stderr")
-    def test_git_error_handling(self, mock_stderr, mock_validate, mock_display,
-                              mock_has_blocking, mock_get_target):
+    def test_git_error_handling(
+        self,
+        mock_stderr,
+        mock_validate,
+        mock_display,
+        mock_has_blocking,
+        mock_get_target,
+    ):
         """Test handling of GitError."""
         args = Mock(patterns=["*.pyc"], no_validate=False)
         mock_validate.return_value = []
@@ -341,7 +349,12 @@ class TestRunIgnoreOperation:
     @patch("git_ignore.main.validate_patterns_and_get_issues")
     @patch("sys.stderr")
     def test_configuration_error_handling(
-        self, mock_stderr, mock_validate, mock_display, mock_has_blocking, mock_get_target
+        self,
+        mock_stderr,
+        mock_validate,
+        mock_display,
+        mock_has_blocking,
+        mock_get_target,
     ):
         """Test handling of configuration IgnoreError."""
         args = Mock(patterns=["*.pyc"], no_validate=False)
@@ -399,8 +412,15 @@ class TestRunIgnoreOperation:
     @patch("git_ignore.main.has_blocking_issues")
     @patch("git_ignore.main.display_validation_issues")
     @patch("git_ignore.main.validate_patterns_and_get_issues")
-    def test_no_patterns_added(self, mock_validate, mock_display, mock_has_blocking,
-                             mock_get_target, mock_get_description, mock_add_patterns):
+    def test_no_patterns_added(
+        self,
+        mock_validate,
+        mock_display,
+        mock_has_blocking,
+        mock_get_target,
+        mock_get_description,
+        mock_add_patterns,
+    ):
         """Test when no patterns are actually added."""
         args = Mock(
             patterns=["*.pyc"],

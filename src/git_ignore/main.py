@@ -104,7 +104,7 @@ def get_target_file_path(args: argparse.Namespace) -> Path:
             raise IgnoreError(
                 "No global gitignore file configured. Set core.excludesfile or "
                 "create ~/.config/git/ignore",
-                recoverable=True
+                recoverable=True,
             )
         return global_path
     elif args.local:
@@ -225,7 +225,10 @@ def run_ignore_operation(args: argparse.Namespace) -> int:
         file_description = _get_file_description(target_file, args)
 
         if not added_patterns:
-            print(f"No new patterns added to {file_description} (all patterns already exist)")
+            print(
+                f"No new patterns added to {file_description} "
+                "(all patterns already exist)"
+            )
             return 0
 
         # Report success with context

@@ -43,11 +43,11 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        uv run ruff check .
+        uv run --frozen ruff check .
 
     - name: Format check with ruff
       run: |
-        uv run ruff format --check .
+        uv run --frozen ruff format --check .
 
     - name: Run unit tests
       run: |

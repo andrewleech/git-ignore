@@ -18,14 +18,20 @@ class TestCLIIntegration:
             repo_path = Path(temp_dir)
 
             # Initialize git repository
-            subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "init"], cwd=repo_path, check=True, capture_output=True
+            )
             subprocess.run(
                 ["git", "config", "user.email", "test@example.com"],
-                cwd=repo_path, check=True, capture_output=True
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
             )
             subprocess.run(
                 ["git", "config", "user.name", "Test User"],
-                cwd=repo_path, check=True, capture_output=True
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
             )
 
             yield repo_path
@@ -33,7 +39,9 @@ class TestCLIIntegration:
     @pytest.fixture
     def temp_global_gitignore(self):
         """Create a temporary global gitignore file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.gitignore', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".gitignore", delete=False
+        ) as f:
             global_path = Path(f.name)
             f.write("# Global gitignore\n")
             f.write("*.tmp\n")
@@ -64,18 +72,17 @@ class TestCLIIntegration:
 
         try:
             result = subprocess.run(
-                cmd,
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=timeout
+                cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout
             )
         except subprocess.TimeoutExpired:
             pytest.fail(f"Command timed out after {timeout} seconds")
 
         if expect_success:
             if result.returncode != 0:
-                pytest.fail(f"Command failed (exit {result.returncode}): {result.stderr}\nStdout: {result.stdout}")
+                pytest.fail(
+                    f"Command failed (exit {result.returncode}): "
+                    f"{result.stderr}\nStdout: {result.stdout}"
+                )
 
         return result
 
@@ -131,7 +138,9 @@ class TestCLIIntegration:
         gitignore_path = temp_git_repo / ".gitignore"
         gitignore_path.write_text("*.pyc\n")
 
-        result = self.run_git_ignore(["--allow-duplicates", "*.pyc", "build/"], cwd=temp_git_repo)
+        result = self.run_git_ignore(
+            ["--allow-duplicates", "*.pyc", "build/"], cwd=temp_git_repo
+        )
 
         assert result.returncode == 0
         assert "Added 2 patterns to repository gitignore" in result.stdout
@@ -161,21 +170,28 @@ class TestCLIIntegration:
     def test_global_gitignore(self, temp_git_repo, temp_global_gitignore):
         """Test adding patterns to global gitignore."""
         # Mock the git config to return our temp global gitignore
+        original_run = subprocess.run
         with patch("subprocess.run") as mock_run:
             # Mock git rev-parse calls for repo detection
             def side_effect(args, **kwargs):
                 if args[:3] == ["git", "rev-parse", "--absolute-git-dir"]:
-                    result = subprocess.CompletedProcess(args, 0, stdout=str(temp_git_repo / ".git"))
+                    result = subprocess.CompletedProcess(
+                        args, 0, stdout=str(temp_git_repo / ".git")
+                    )
                     return result
                 elif args[:3] == ["git", "rev-parse", "--show-toplevel"]:
-                    result = subprocess.CompletedProcess(args, 0, stdout=str(temp_git_repo))
+                    result = subprocess.CompletedProcess(
+                        args, 0, stdout=str(temp_git_repo)
+                    )
                     return result
                 elif args == ["git", "config", "--global", "core.excludesfile"]:
-                    result = subprocess.CompletedProcess(args, 0, stdout=str(temp_global_gitignore))
+                    result = subprocess.CompletedProcess(
+                        args, 0, stdout=str(temp_global_gitignore)
+                    )
                     return result
                 else:
-                    # For any other calls, use the real subprocess
-                    return subprocess.run(args, **kwargs)
+                    # For any other calls, use the original subprocess
+                    return original_run(args, **kwargs)
 
             mock_run.side_effect = side_effect
 
@@ -193,13 +209,16 @@ class TestCLIIntegration:
     def test_pattern_validation_errors(self, temp_git_repo):
         """Test that pattern validation errors prevent execution."""
         # Test with pattern containing newlines (should be error)
-        result = self.run_git_ignore(["pattern\nwith\nnewlines"], cwd=temp_git_repo, expect_success=False)
+        result = self.run_git_ignore(
+            ["pattern\nwith\nnewlines"], cwd=temp_git_repo, expect_success=False
+        )
 
         assert result.returncode == 1
         assert "ERROR: Found problematic patterns" in result.stderr
 
     def test_pattern_validation_warnings(self, temp_git_repo):
-        """Test that pattern validation warnings are shown but don't prevent execution."""
+        """Test that pattern validation warnings are shown but don't prevent
+        execution."""
         result = self.run_git_ignore(["*"], cwd=temp_git_repo)
 
         assert result.returncode == 0
@@ -233,25 +252,32 @@ class TestCLIIntegration:
 
     def test_global_gitignore_not_configured(self, temp_git_repo):
         """Test error when global gitignore is not configured."""
+        original_run = subprocess.run
         with patch("subprocess.run") as mock_run:
             # Mock git commands to simulate no global gitignore configured
             def side_effect(args, **kwargs):
                 if args[:3] == ["git", "rev-parse", "--absolute-git-dir"]:
-                    result = subprocess.CompletedProcess(args, 0, stdout=str(temp_git_repo / ".git"))
+                    result = subprocess.CompletedProcess(
+                        args, 0, stdout=str(temp_git_repo / ".git")
+                    )
                     return result
                 elif args[:3] == ["git", "rev-parse", "--show-toplevel"]:
-                    result = subprocess.CompletedProcess(args, 0, stdout=str(temp_git_repo))
+                    result = subprocess.CompletedProcess(
+                        args, 0, stdout=str(temp_git_repo)
+                    )
                     return result
                 elif args == ["git", "config", "--global", "core.excludesfile"]:
                     # Simulate no global gitignore configured
                     result = subprocess.CompletedProcess(args, 1, stderr="")
                     return result
                 else:
-                    return subprocess.run(args, **kwargs)
+                    return original_run(args, **kwargs)
 
             mock_run.side_effect = side_effect
 
-            result = self.run_git_ignore(["--global", "*.pyc"], cwd=temp_git_repo, expect_success=False)
+            result = self.run_git_ignore(
+                ["--global", "*.pyc"], cwd=temp_git_repo, expect_success=False
+            )
 
         assert result.returncode == 3
         assert "Configuration error" in result.stderr
@@ -266,7 +292,9 @@ class TestCLIIntegration:
         try:
             gitignore_path.chmod(0o444)  # Read-only
 
-            result = self.run_git_ignore(["*.pyc"], cwd=temp_git_repo, expect_success=False)
+            result = self.run_git_ignore(
+                ["*.pyc"], cwd=temp_git_repo, expect_success=False
+            )
 
             assert result.returncode == 4
             assert "Error writing patterns to" in result.stderr
@@ -298,7 +326,7 @@ class TestCLIIntegration:
             ["python", "-m", "git_ignore.main", "--version"],
             cwd=temp_git_repo,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # argparse exits with code 0 for --version
@@ -312,7 +340,7 @@ class TestCLIIntegration:
             ["python", "-m", "git_ignore.main", "--help"],
             cwd=temp_git_repo,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         assert result.returncode == 0
@@ -339,7 +367,7 @@ class TestCLIIntegration:
             "parts/",
             "sdist/",
             "var/",
-            "wheels/"
+            "wheels/",
         ]
 
         result = self.run_git_ignore(patterns, cwd=temp_git_repo)
@@ -356,12 +384,12 @@ class TestCLIIntegration:
     def test_special_characters_in_patterns(self, temp_git_repo):
         """Test handling of patterns with special characters."""
         patterns = [
-            "*.pyc",           # Basic pattern
+            "*.pyc",  # Basic pattern
             "file with spaces.txt",  # Spaces
             "file-with-dashes.log",  # Dashes
             "file_with_underscores.tmp",  # Underscores
-            "[Bb]uild/",       # Character class
-            "*.{jpg,png,gif}", # Brace expansion
+            "[Bb]uild/",  # Character class
+            "*.{jpg,png,gif}",  # Brace expansion
         ]
 
         result = self.run_git_ignore(patterns, cwd=temp_git_repo)
