@@ -1,0 +1,3 @@
+/target
+*.test
+__test__/

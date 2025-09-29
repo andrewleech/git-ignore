@@ -1,0 +1,29 @@
+[package]
+name = "git-ignore"
+version = "0.2.0"
+edition = "2021"
+description = "A command-line tool to add patterns to git ignore files"
+license = "MIT"
+authors = ["Andrew Leech <andrew@alelec.net>"]
+repository = "https://github.com/andrewleech/git-ignore"
+homepage = "https://github.com/andrewleech/git-ignore"
+documentation = "https://github.com/andrewleech/git-ignore"
+readme = "README.md"
+keywords = ["git", "gitignore", "cli", "development-tools"]
+categories = ["command-line-utilities", "development-tools"]
+rust-version = "1.70"
+
+[[bin]]
+name = "git-ignore"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.4", features = ["derive", "color", "help", "usage", "error-context"] }
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.0"
+tempfile = "3.8"

@@ -8,318 +8,200 @@ on:
     branches: [ main, develop ]
 
 env:
-  # Minimum Python version we support
-  MIN_PYTHON_VERSION: "3.9"
+  # Minimum Rust version we support
+  MIN_RUST_VERSION: "1.70.0"
 
 jobs:
   test:
-    name: Test Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    name: Test Rust ${{ matrix.rust-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        rust-version: ["stable", "beta", "1.70.0"]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
-        python-version: ${{ matrix.python-version }}
+        toolchain: ${{ matrix.rust-version }}
+        components: rustfmt, clippy
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v2
-
-    - name: Set up git
+    - name: Set up git (for tests)
       run: |
         git config --global user.email "test@example.com"
         git config --global user.name "Test User"
 
-    - name: Install dependencies
-      run: |
-        uv sync --dev
-        uv pip install ruff pytest pytest-cov
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
 
-    - name: Lint with ruff
-      run: |
-        uv run python -m ruff check .
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-index-
 
-    - name: Format check with ruff
-      run: |
-        uv run python -m ruff format --check .
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Check code formatting
+      run: cargo fmt --all -- --check
+
+    - name: Lint with clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
 
     - name: Run unit tests
-      run: |
-        uv run pytest tests/unit/ -v --cov=src/git_ignore --cov-report=xml --cov-report=term-missing
+      run: cargo test --lib --verbose
 
     - name: Run integration tests
-      run: |
-        uv run pytest tests/integration/ -v
+      run: cargo test --test integration_tests --verbose
 
-    - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
+    - name: Run documentation tests
+      run: cargo test --doc
 
-  build:
-    name: Build distribution packages
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.MIN_PYTHON_VERSION }}
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v2
-
-    - name: Build packages
-      run: |
-        uv build
-
-    - name: Check package metadata
-      run: |
-        uv sync --dev
-        uv pip install twine
-        uv run twine check dist/*
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist-packages
-        path: dist/
-        retention-days: 90
-
-  test-install:
-    name: Test package installation
-    runs-on: ${{ matrix.os }}
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.12"]
-
-    steps:
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist-packages
-        path: dist/
-
-    - name: Install package from wheel
-      shell: bash
-      run: |
-        python -m pip install dist/*.whl
-
-    - name: Test basic functionality
-      shell: bash
-      run: |
-        git-ignore --version
-        git-ignore --help
-
-    - name: Test in temporary git repo
-      shell: bash
-      run: |
-        mkdir test-repo
-        cd test-repo
-        git init
-        git config user.email "test@example.com"
-        git config user.name "Test User"
-        git-ignore "*.pyc" "__pycache__/"
-        test -f .gitignore
-        grep "*.pyc" .gitignore
-        grep "__pycache__/" .gitignore
+    - name: Check cargo build
+      run: cargo build --release --verbose
 
   security:
-    name: Security checks
+    name: Security audit
     runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Cache audit database
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/advisory-db
+        key: rust-advisory-db
+
+    - name: Run security audit
+      run: |
+        cargo install --locked cargo-audit
+        cargo audit
+
+  build:
+    name: Build release binaries
+    runs-on: ${{ matrix.os }}
     needs: test
+    if: startsWith(github.ref, 'refs/tags/')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: git-ignore
+            asset_name: git-ignore-linux-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: git-ignore.exe
+            asset_name: git-ignore-windows-x86_64.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: git-ignore
+            asset_name: git-ignore-macos-x86_64
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
-        python-version: ${{ env.MIN_PYTHON_VERSION }}
+        target: ${{ matrix.target }}
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v2
+    - name: Build release binary
+      run: cargo build --release --target ${{ matrix.target }}
 
-    - name: Install dependencies
+    - name: Rename binary
+      shell: bash
       run: |
-        uv sync --dev
-        uv add --dev bandit[toml] safety
+        mkdir -p releases
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} releases/${{ matrix.asset_name }}
+        else
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} releases/${{ matrix.asset_name }}
+          chmod +x releases/${{ matrix.asset_name }}
+        fi
 
-    - name: Run bandit security linter
-      run: |
-        uv run bandit -r src/ -f json -o bandit-report.json || true
-        uv run bandit -r src/ -f txt
-
-    - name: Run safety check
-      run: |
-        uv run safety check --json --output safety-report.json || true
-        uv run safety check
-
-    - name: Upload security reports
-      if: always()
+    - name: Upload release artifact
       uses: actions/upload-artifact@v4
       with:
-        name: security-reports
-        path: |
-          bandit-report.json
-          safety-report.json
-        retention-days: 30
+        name: ${{ matrix.asset_name }}
+        path: releases/${{ matrix.asset_name }}
 
   release:
-    name: Release to PyPI
+    name: Create GitHub release
     runs-on: ubuntu-latest
-    needs: [test, build, test-install, security]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    environment:
-      name: release
-      url: https://pypi.org/project/git-ignore/
+    needs: [test, build]
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-    - name: Download build artifacts
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
-        name: dist-packages
-        path: dist/
+        path: artifacts
 
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@v1.8.11
+    - name: Create release
+      uses: softprops/action-gh-release@v1
       with:
-        password: ${{ secrets.PYPI_API_TOKEN }}
-
-    - name: Create GitHub Release
-      uses: ncipollo/release-action@v1
-      with:
-        artifacts: "dist/*"
-        body: |
-          Release ${{ github.ref_name }}
-
-          Install with: `pip install git-ignore==${{ github.ref_name }}`
-
-          ## Changes
-          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+        files: artifacts/**/git-ignore-*
+        generate_release_notes: true
         draft: false
         prerelease: false
-        token: ${{ secrets.GITHUB_TOKEN }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  performance:
-    name: Performance benchmarks
+  publish-crates:
+    name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'pull_request'
+    needs: [test, security]
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.MIN_PYTHON_VERSION }}
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v2
+    - name: Publish to crates.io
+      run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
 
-    - name: Install dependencies
-      run: |
-        uv sync --dev
-        uv add --dev pytest-benchmark
-
-    - name: Set up git
-      run: |
-        git config --global user.email "test@example.com"
-        git config --global user.name "Test User"
-
-    - name: Run performance benchmarks
-      run: |
-        uv run pytest tests/ -k "benchmark" --benchmark-json=benchmark-results.json || true
-
-    - name: Upload benchmark results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: benchmark-results
-        path: benchmark-results.json
-        retention-days: 30
-
-    - name: Comment benchmark results on PR
-      if: github.event_name == 'pull_request' && always()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-
-          try {
-            const results = JSON.parse(fs.readFileSync('benchmark-results.json', 'utf8'));
-            const comment = `## Performance Benchmark Results\n\nBenchmarks completed for commit ${context.sha.substring(0, 7)}.\n\nSee artifacts for detailed results.`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-          } catch (error) {
-            console.log('No benchmark results to report');
-          }
-
-  docs:
-    name: Build and check documentation
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+  test-install:
+    name: Test cargo install
+    runs-on: ${{ matrix.os }}
+    needs: publish-crates
+    if: startsWith(github.ref, 'refs/tags/')
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: Install Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.MIN_PYTHON_VERSION }}
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v2
-
-    - name: Install dependencies
+    - name: Test install from crates.io
       run: |
-        uv sync --dev
-
-    - name: Check README examples work
-      run: |
-        # Extract and test code examples from README
-        git init temp-readme-test
-        cd temp-readme-test
-        git config user.email "test@example.com"
-        git config user.name "Test User"
-
-        # Test basic examples from README
-        uv run python -m git_ignore.main "*.pyc" "__pycache__/"
-        test -f .gitignore
-        grep "*.pyc" .gitignore
-
-    - name: Validate CLAUDE.md format
-      run: |
-        test -f CLAUDE.md
-        grep -q "Development" CLAUDE.md
+        cargo install git-ignore
+        git-ignore --version

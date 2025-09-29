@@ -17,37 +17,36 @@ A command-line tool for easily adding patterns to git ignore files. Supports add
 
 ## Installation
 
-### From PyPI (recommended)
+### From crates.io (recommended)
 
-**With uv (fastest and most reliable):**
+**With cargo (fastest and most reliable):**
 ```bash
-uv tool install git-ignore
+cargo install git-ignore
 ```
 
-**With pip:**
-```bash
-pip install git-ignore
-```
+### Pre-built binaries
 
-**With pipx (isolated installation):**
-```bash
-pipx install git-ignore
-```
+Download pre-built binaries for your platform from the [releases page](https://github.com/andrewleech/git-ignore/releases).
 
 ### From source
 
+**Prerequisites:** Rust 1.70+ ([install via rustup](https://rustup.rs/))
+
 ```bash
 git clone https://github.com/andrewleech/git-ignore.git
 cd git-ignore
-pip install -e .
+cargo build --release
 ```
 
-### Using uv (for development)
+The binary will be available at `target/release/git-ignore`.
+
+### For development
 
 ```bash
 git clone https://github.com/andrewleech/git-ignore.git
 cd git-ignore
-uv sync --dev
+cargo build
+cargo test
 ```
 
 ## Usage
