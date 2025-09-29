@@ -258,7 +258,7 @@ See [CLAUDE.md](CLAUDE.md) for detailed development information.
 
 1. Check this README and the `--help` output
 2. Look at the integration tests for usage examples
-3. Open an issue on [GitHub](https://github.com/user/git-ignore/issues)
+3. Open an issue on [GitHub](https://github.com/andrewleech/git-ignore/issues)
 
 ## Contributing
 
@@ -275,7 +275,3 @@ See [CLAUDE.md](CLAUDE.md) for development guidelines.
 ## License
 
 MIT License. See [LICENSE](LICENSE) file for details.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history and changes.
