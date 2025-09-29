@@ -1,9 +1,8 @@
 # git-ignore
 
-[![CI/CD Pipeline](https://github.com/user/git-ignore/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/user/git-ignore/actions/workflows/ci-cd.yml)
+[![CI/CD Pipeline](https://github.com/andrewleech/git-ignore/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/andrewleech/git-ignore/actions/workflows/ci-cd.yml)
 [![PyPI version](https://badge.fury.io/py/git-ignore.svg)](https://badge.fury.io/py/git-ignore)
 [![Python versions](https://img.shields.io/pypi/pyversions/git-ignore.svg)](https://pypi.org/project/git-ignore/)
-[![Code coverage](https://codecov.io/gh/user/git-ignore/branch/main/graph/badge.svg)](https://codecov.io/gh/user/git-ignore)
 
 A command-line tool for easily adding patterns to git ignore files. Supports adding patterns to `.gitignore`, `.git/info/exclude`, or global gitignore files with validation and duplicate detection.
 
