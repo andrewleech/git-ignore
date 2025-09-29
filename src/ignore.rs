@@ -41,7 +41,7 @@ fn validate_file_path(file_path: &Path, base_dir: Option<&Path>) -> anyhow::Resu
             .canonicalize()
             .with_context(|| format!("Invalid base directory: {}", base.display()))?;
 
-        if !resolved.starts_with(&base_resolved) {
+        if !resolved.starts_with(base_resolved) {
             bail!(
                 "File path {} is outside allowed directory",
                 file_path.display()
