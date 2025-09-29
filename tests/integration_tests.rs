@@ -46,7 +46,7 @@ fn test_version_output() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::contains("0.2.0"));
+        .stdout(predicate::str::contains("1.0.0"));
 }
 
 #[test]
