@@ -228,7 +228,7 @@ fn main() {
             let error_str = e.to_string();
 
             // Determine appropriate exit code based on error type
-            let code = if error_str.contains("Pattern validation failed") {
+            if error_str.contains("Pattern validation failed") {
                 EXIT_VALIDATION_FAILED
             } else if error_str.contains("Not in a git repository")
                 || error_str.contains("Failed to find git directory")
@@ -252,9 +252,7 @@ fn main() {
             } else {
                 eprintln!("Error: {e}");
                 EXIT_FILE_ERROR
-            };
-
-            code
+            }
         }
     };
 
