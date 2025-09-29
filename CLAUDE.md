@@ -107,6 +107,37 @@ cargo fmt && cargo clippy --all-targets --all-features -- -D warnings && cargo t
 MSRV: 1.74.0 (due to clap v4.4 requirements)
 Matrix tested on: stable, beta, and 1.74.0 across Linux/Windows/macOS
 
+## Release Process
+
+Use the provided release script to atomically bump versions and create tags:
+
+```bash
+# Patch release (0.2.0 → 0.2.1)
+./release.sh patch
+
+# Minor release (0.2.0 → 0.3.0)
+./release.sh minor
+
+# Major release (0.2.0 → 1.0.0)
+./release.sh major
+
+# Specific version
+./release.sh 1.2.3
+```
+
+The script:
+1. Validates git state (clean working directory, on main branch)
+2. Updates version in `Cargo.toml` and `Cargo.lock`
+3. Creates commit with version bump
+4. Creates annotated git tag (`v1.2.3`)
+5. Provides instructions for pushing
+
+**Release Pipeline**: Pushing tags triggers CI/CD pipeline that:
+- Validates tag matches Cargo.toml version
+- Builds cross-platform binaries
+- Creates GitHub release
+- Publishes to crates.io (requires `CRATES_IO_TOKEN` secret)
+
 ## Git Integration Patterns
 
 The tool uses `git rev-parse --absolute-git-dir` to robustly handle:
