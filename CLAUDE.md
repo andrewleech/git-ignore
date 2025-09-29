@@ -109,34 +109,82 @@ Matrix tested on: stable, beta, and 1.74.0 across Linux/Windows/macOS
 
 ## Release Process
 
-Use the provided release script to atomically bump versions and create tags:
+The project uses `./release.sh` script to eliminate version duplication between `Cargo.toml` and git tags. This script provides atomic version bumping with built-in safety checks.
+
+### Usage
 
 ```bash
-# Patch release (0.2.0 → 0.2.1)
+# Patch release (0.2.0 → 0.2.1) - bug fixes
 ./release.sh patch
 
-# Minor release (0.2.0 → 0.3.0)
+# Minor release (0.2.0 → 0.3.0) - new features
 ./release.sh minor
 
-# Major release (0.2.0 → 1.0.0)
+# Major release (0.2.0 → 1.0.0) - breaking changes
 ./release.sh major
 
 # Specific version
 ./release.sh 1.2.3
 ```
 
-The script:
-1. Validates git state (clean working directory, on main branch)
-2. Updates version in `Cargo.toml` and `Cargo.lock`
-3. Creates commit with version bump
-4. Creates annotated git tag (`v1.2.3`)
-5. Provides instructions for pushing
+### Script Safety Features
 
-**Release Pipeline**: Pushing tags triggers CI/CD pipeline that:
-- Validates tag matches Cargo.toml version
-- Builds cross-platform binaries
-- Creates GitHub release
-- Publishes to crates.io (requires `CRATES_IO_TOKEN` secret)
+The script includes comprehensive validation:
+- **Git repository check** - Ensures you're in a git repo
+- **Clean working directory** - Prevents releases with uncommitted changes
+- **Branch verification** - Warns if not on main branch (with override option)
+- **Version format validation** - Ensures semantic versioning compliance
+- **User confirmation** - Shows version change and requires confirmation
+
+### Atomic Operations
+
+Single command execution performs:
+1. **Version extraction** - Reads current version from `Cargo.toml`
+2. **Version calculation** - Computes new version based on bump type
+3. **File updates** - Updates `Cargo.toml` and regenerates `Cargo.lock`
+4. **Git operations** - Creates commit and annotated tag atomically
+5. **Push instructions** - Provides exact commands for release completion
+
+### Complete Release Workflow
+
+```bash
+# 1. Create release (atomic operation)
+./release.sh patch
+
+# 2. Push to trigger automated pipeline
+git push origin main --tags
+
+# Or push separately for more control:
+# git push origin main
+# git push origin v0.2.1
+```
+
+### CI/CD Release Pipeline
+
+Pushing tags triggers comprehensive automation:
+- **Version validation** - Verifies tag matches `Cargo.toml` version
+- **Cross-platform builds** - Linux, macOS, Windows binaries
+- **GitHub release** - Automatic release with binaries attached
+- **crates.io publishing** - Requires `CRATES_IO_TOKEN` repository secret
+
+### Initial Setup
+
+Before first release, configure crates.io authentication:
+1. Generate API token at https://crates.io/settings/tokens
+2. Add `CRATES_IO_TOKEN` secret in GitHub repository settings
+3. Grant `publish-new` and `publish-update` scopes
+
+### Error Recovery
+
+If release fails partway through:
+```bash
+# Remove tag locally and remotely if needed
+git tag -d v1.2.3
+git push origin :refs/tags/v1.2.3
+
+# Reset to previous commit if necessary
+git reset --hard HEAD~1
+```
 
 ## Git Integration Patterns
 
