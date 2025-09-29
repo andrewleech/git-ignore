@@ -42,11 +42,12 @@ fn test_help_output() {
 
 #[test]
 fn test_version_output() {
+    let expected_version = env!("CARGO_PKG_VERSION");
     git_ignore_cmd()
         .arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::contains("1.0.0"));
+        .stdout(predicate::str::contains(expected_version));
 }
 
 #[test]
