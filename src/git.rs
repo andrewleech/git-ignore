@@ -1,6 +1,6 @@
 //! Git repository utilities for path detection and resolution
 
-use crate::{GitError};
+use anyhow::{bail, Context};
 use std::{
     env,
     path::{Path, PathBuf},
@@ -9,73 +9,73 @@ use std::{
 };
 
 /// Cache for git directory path
-static GIT_DIR_CACHE: OnceLock<Result<PathBuf, GitError>> = OnceLock::new();
+static GIT_DIR_CACHE: OnceLock<PathBuf> = OnceLock::new();
 
 /// Cache for repository root path
-static REPO_ROOT_CACHE: OnceLock<Result<PathBuf, GitError>> = OnceLock::new();
+static REPO_ROOT_CACHE: OnceLock<PathBuf> = OnceLock::new();
 
 /// Execute git command and return stdout
-fn run_git_command(args: &[&str]) -> Result<String, GitError> {
+fn run_git_command(args: &[&str]) -> anyhow::Result<String> {
     let output = Command::new("git")
         .args(args)
         .output()
-        .map_err(|_| GitError::NotFound)?;
+        .with_context(|| "Git not found in PATH")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
-        return Err(GitError::NotInRepository {
-            cwd,
-            message: stderr.trim().to_string(),
-        });
+        bail!("Not in a git repository (cwd: {}): {}", cwd.display(), stderr.trim());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let result = stdout.trim();
 
     if result.is_empty() {
-        return Err(GitError::CommandFailed {
-            message: format!("Git command returned empty output: git {}", args.join(" ")),
-        });
+        bail!("Git command returned empty output: git {}", args.join(" "));
     }
 
     Ok(result.to_string())
 }
 
 /// Validate that git returned a reasonable path
-fn validate_git_path(path: &Path) -> Result<PathBuf, GitError> {
-    let resolved = path.canonicalize().map_err(|_| GitError::CommandFailed {
-        message: format!("Invalid path returned by git: {}", path.display()),
-    })?;
+fn validate_git_path(path: &Path) -> anyhow::Result<PathBuf> {
+    let resolved = path.canonicalize()
+        .with_context(|| format!("Invalid path returned by git: {}", path.display()))?;
 
     Ok(resolved)
 }
 
 /// Get the absolute path to the git directory (.git folder or file)
-pub fn get_git_dir() -> Result<PathBuf, GitError> {
-    GIT_DIR_CACHE
-        .get_or_init(|| {
-            let output = run_git_command(&["rev-parse", "--absolute-git-dir"])?;
-            let path = PathBuf::from(output);
-            validate_git_path(&path)
-        })
-        .as_ref()
-        .map(|p| p.clone())
-        .map_err(|e| e.clone())
+pub fn get_git_dir() -> anyhow::Result<PathBuf> {
+    if let Some(cached) = GIT_DIR_CACHE.get() {
+        return Ok(cached.clone());
+    }
+
+    let output = run_git_command(&["rev-parse", "--absolute-git-dir"])
+        .context("Failed to find git directory")?;
+    let path = PathBuf::from(output);
+    let validated = validate_git_path(&path)?;
+
+    // Only cache if we succeed
+    let _ = GIT_DIR_CACHE.set(validated.clone());
+    Ok(validated)
 }
 
 /// Get the absolute path to the repository root
-pub fn get_repo_root() -> Result<PathBuf, GitError> {
-    REPO_ROOT_CACHE
-        .get_or_init(|| {
-            let output = run_git_command(&["rev-parse", "--show-toplevel"])?;
-            let path = PathBuf::from(output);
-            validate_git_path(&path)
-        })
-        .as_ref()
-        .map(|p| p.clone())
-        .map_err(|e| e.clone())
+pub fn get_repo_root() -> anyhow::Result<PathBuf> {
+    if let Some(cached) = REPO_ROOT_CACHE.get() {
+        return Ok(cached.clone());
+    }
+
+    let output = run_git_command(&["rev-parse", "--show-toplevel"])
+        .context("Failed to find repository root")?;
+    let path = PathBuf::from(output);
+    let validated = validate_git_path(&path)?;
+
+    // Only cache if we succeed
+    let _ = REPO_ROOT_CACHE.set(validated.clone());
+    Ok(validated)
 }
 
 /// Get path to global gitignore file
@@ -135,13 +135,13 @@ pub fn get_global_gitignore_path() -> Option<PathBuf> {
 }
 
 /// Get path to repository's .git/info/exclude file
-pub fn get_exclude_file_path() -> Result<PathBuf, GitError> {
+pub fn get_exclude_file_path() -> anyhow::Result<PathBuf> {
     let git_dir = get_git_dir()?;
     Ok(git_dir.join("info").join("exclude"))
 }
 
 /// Get path to repository's .gitignore file
-pub fn get_gitignore_path() -> Result<PathBuf, GitError> {
+pub fn get_gitignore_path() -> anyhow::Result<PathBuf> {
     let repo_root = get_repo_root()?;
     Ok(repo_root.join(".gitignore"))
 }

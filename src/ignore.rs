@@ -1,6 +1,7 @@
 //! Core ignore file management functionality
 
-use crate::{IgnoreError, PatternIssue, PatternSeverity, PatternValidationLevel};
+use crate::{PatternIssue, PatternSeverity, PatternValidationLevel};
+use anyhow::{bail, Context};
 use std::{
     collections::HashSet,
     fs::{File, OpenOptions},
@@ -15,7 +16,7 @@ fn sanitize_pattern(pattern: &str) -> String {
 }
 
 /// Validate that file path is safe to write to
-fn validate_file_path(file_path: &Path, base_dir: Option<&Path>) -> Result<(), IgnoreError> {
+fn validate_file_path(file_path: &Path, base_dir: Option<&Path>) -> anyhow::Result<()> {
     let resolved = if file_path.exists() {
         file_path.canonicalize()
     } else if let Some(parent) = file_path.parent() {
@@ -32,19 +33,14 @@ fn validate_file_path(file_path: &Path, base_dir: Option<&Path>) -> Result<(), I
             std::io::ErrorKind::InvalidInput,
             "Invalid file path"
         ))
-    }.map_err(|_| IgnoreError::InvalidPath {
-        path: file_path.to_path_buf()
-    })?;
+    }.with_context(|| format!("Invalid file path: {}", file_path.display()))?;
 
     if let Some(base) = base_dir {
-        let base_resolved = base.canonicalize().map_err(|_| IgnoreError::InvalidPath {
-            path: base.to_path_buf()
-        })?;
+        let base_resolved = base.canonicalize()
+            .with_context(|| format!("Invalid base directory: {}", base.display()))?;
 
         if !resolved.starts_with(&base_resolved) {
-            return Err(IgnoreError::InvalidPath {
-                path: file_path.to_path_buf()
-            });
+            bail!("File path {} is outside allowed directory", file_path.display());
         }
     }
 
@@ -52,24 +48,20 @@ fn validate_file_path(file_path: &Path, base_dir: Option<&Path>) -> Result<(), I
 }
 
 /// Read patterns from ignore file
-pub fn read_ignore_patterns(file_path: &Path) -> Result<HashSet<String>, IgnoreError> {
+pub fn read_ignore_patterns(file_path: &Path) -> anyhow::Result<HashSet<String>> {
     if !file_path.exists() {
         return Ok(HashSet::new());
     }
 
-    let file = File::open(file_path).map_err(|e| IgnoreError::ReadFailed {
-        path: file_path.to_path_buf(),
-        source: e,
-    })?;
+    let file = File::open(file_path)
+        .with_context(|| format!("Failed to open ignore file: {}", file_path.display()))?;
 
     let reader = BufReader::new(file);
     let mut patterns = HashSet::new();
 
     for line in reader.lines() {
-        let line = line.map_err(|e| IgnoreError::ReadFailed {
-            path: file_path.to_path_buf(),
-            source: e,
-        })?;
+        let line = line
+            .with_context(|| format!("Failed to read line from: {}", file_path.display()))?;
 
         let trimmed = line.trim();
 
@@ -87,7 +79,7 @@ pub fn write_ignore_patterns(
     file_path: &Path,
     patterns: &[String],
     append: bool,
-) -> Result<(), IgnoreError> {
+) -> anyhow::Result<()> {
     if patterns.is_empty() {
         return Ok(());
     }
@@ -107,10 +99,8 @@ pub fn write_ignore_patterns(
 
     // Ensure parent directory exists
     if let Some(parent) = file_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| IgnoreError::CreateDirFailed {
-            path: parent.to_path_buf(),
-            source: e,
-        })?;
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
     }
 
     let mut file = if append {
@@ -125,31 +115,19 @@ pub fn write_ignore_patterns(
             .write(true)
             .truncate(true)
             .open(file_path)
-    }.map_err(|e| IgnoreError::WriteFailed {
-        path: file_path.to_path_buf(),
-        source: e,
-    })?;
+    }.with_context(|| format!("Failed to write to: {}", file_path.display()))?;
 
     // Handle newline for append mode
     if append && file.metadata().map(|m| m.len()).unwrap_or(0) > 0 {
-        writeln!(file).map_err(|e| IgnoreError::WriteFailed {
-            path: file_path.to_path_buf(),
-            source: e,
-        })?;
+        writeln!(file).with_context(|| format!("Failed to write newline to: {}", file_path.display()))?;
     }
 
     let mut writer = BufWriter::new(&mut file);
     for pattern in sanitized_patterns {
-        writeln!(writer, "{}", pattern).map_err(|e| IgnoreError::WriteFailed {
-            path: file_path.to_path_buf(),
-            source: e,
-        })?;
+        writeln!(writer, "{}", pattern).with_context(|| format!("Failed to write pattern to: {}", file_path.display()))?;
     }
 
-    writer.flush().map_err(|e| IgnoreError::WriteFailed {
-        path: file_path.to_path_buf(),
-        source: e,
-    })?;
+    writer.flush().with_context(|| format!("Failed to flush writes to: {}", file_path.display()))?;
 
     Ok(())
 }
@@ -160,7 +138,7 @@ pub fn add_patterns_to_ignore_file(
     new_patterns: &[String],
     avoid_duplicates: bool,
     validation_level: PatternValidationLevel,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+) -> anyhow::Result<Vec<String>> {
     if new_patterns.is_empty() {
         return Ok(Vec::new());
     }
@@ -182,7 +160,7 @@ pub fn add_patterns_to_ignore_file(
         }
 
         if has_errors || (validation_level == PatternValidationLevel::Strict && has_warnings) {
-            return Err("Pattern validation failed".into());
+            bail!("Pattern validation failed");
         }
     }
 
@@ -274,17 +252,15 @@ pub fn validate_ignore_patterns(patterns: &[String]) -> Vec<PatternIssue> {
 }
 
 /// Ensure the .git/info/exclude file exists and has proper structure
-pub fn ensure_info_exclude_exists(exclude_file_path: &Path) -> Result<(), IgnoreError> {
+pub fn ensure_info_exclude_exists(exclude_file_path: &Path) -> anyhow::Result<()> {
     if exclude_file_path.exists() {
         return Ok(());
     }
 
     // Create the info directory if it doesn't exist
     if let Some(parent) = exclude_file_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| IgnoreError::CreateDirFailed {
-            path: parent.to_path_buf(),
-            source: e,
-        })?;
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
     }
 
     // Create the exclude file with default template
@@ -296,10 +272,8 @@ pub fn ensure_info_exclude_exists(exclude_file_path: &Path) -> Result<(), Ignore
 # *~
 "#;
 
-    std::fs::write(exclude_file_path, template).map_err(|e| IgnoreError::InitializeFailed {
-        path: exclude_file_path.to_path_buf(),
-        source: e,
-    })?;
+    std::fs::write(exclude_file_path, template)
+        .with_context(|| format!("Failed to initialize exclude file: {}", exclude_file_path.display()))?;
 
     Ok(())
 }

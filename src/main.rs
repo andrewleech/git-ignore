@@ -111,14 +111,14 @@ fn has_blocking_issues(issues: &[PatternIssue]) -> bool {
 fn get_target_file(
     local: bool,
     global: bool,
-) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+) -> anyhow::Result<std::path::PathBuf> {
     if local && global {
-        return Err("Cannot specify both --local and --global".into());
+        anyhow::bail!("Cannot specify both --local and --global");
     }
 
     if global {
         git::get_global_gitignore_path()
-            .ok_or_else(|| "No global gitignore configured. Run: git config --global core.excludesfile ~/.gitignore_global".into())
+            .ok_or_else(|| anyhow::anyhow!("No global gitignore configured. Run: git config --global core.excludesfile ~/.gitignore_global"))
     } else if local {
         Ok(git::get_exclude_file_path()?)
     } else {
@@ -138,7 +138,7 @@ fn get_file_description(file_path: &std::path::Path, local: bool, global: bool) 
 }
 
 /// Main application logic
-fn run() -> Result<(), Box<dyn std::error::Error>> {
+fn run() -> anyhow::Result<()> {
     let matches = create_parser().get_matches();
 
     let patterns: Vec<String> = matches
@@ -169,7 +169,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check if we should continue
     if has_blocking_issues(&issues) {
-        return Err("Pattern validation failed with errors".into());
+        anyhow::bail!("Pattern validation failed with errors");
     }
 
     // Determine target file
@@ -229,8 +229,9 @@ fn main() {
             let code = if error_str.contains("Pattern validation failed") {
                 EXIT_VALIDATION_FAILED
             } else if error_str.contains("Not in a git repository")
-                || error_str.contains("Git command")
-                || error_str.contains("Git error")
+                || error_str.contains("Failed to find git directory")
+                || error_str.contains("Failed to find repository root")
+                || error_str.contains("Git not found in PATH")
             {
                 eprintln!("Git error while determining target file: {}", e);
                 EXIT_GIT_ERROR
