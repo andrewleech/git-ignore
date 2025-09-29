@@ -1,72 +1,117 @@
-# git-ignore Development Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-A Python CLI tool that adds patterns to git ignore files. Supports adding to `.gitignore`, `.git/info/exclude`, or global gitignore files.
+A Rust CLI tool that adds patterns to git ignore files. Supports adding to `.gitignore`, `.git/info/exclude`, or global gitignore files with validation and duplicate detection.
+
+## Development Commands
+
+### Build and Test
+```bash
+# Build the project
+cargo build
+
+# Build release binary
+cargo build --release
+
+# Run all tests
+cargo test
+
+# Run only unit tests
+cargo test --lib
+
+# Run only integration tests
+cargo test --test integration_tests
+
+# Run specific test
+cargo test test_add_patterns_to_gitignore
+
+# Run documentation tests
+cargo test --doc
+```
+
+### Code Quality
+```bash
+# Check code formatting
+cargo fmt --check
+
+# Format code
+cargo fmt
+
+# Run linting
+cargo clippy --all-targets --all-features -- -D warnings
+
+# Run all quality checks (what CI runs)
+cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test
+```
+
+### Development Workflow
+```bash
+# Quick development cycle
+cargo build && cargo test --lib
+
+# Full validation before commit
+cargo fmt && cargo clippy --all-targets --all-features -- -D warnings && cargo test
+```
 
 ## Architecture
 
-- **git_utils.py**: Git repository detection and path resolution
-- **ignore_manager.py**: Core ignore file management (reading, writing, duplicate detection)
-- **main.py**: CLI interface and argument parsing
+### Core Modules
+- **`src/main.rs`**: CLI interface using clap derive macros, handles argument parsing and coordinates between modules
+- **`src/lib.rs`**: Public API for library usage, consolidates validation logic and exports main functionality
+- **`src/git.rs`**: Git repository detection and path resolution, handles worktrees/submodules via `git rev-parse --absolute-git-dir`
+- **`src/ignore.rs`**: Core file operations (reading, writing, validation), pattern sanitization and duplicate detection
 
-## Development Requirements
+### Key Design Patterns
 
-### Code Quality
-- Each module must be tested before review
-- All code reviewed by principal-code-reviewer agent
-- Follow stdlib-only approach (no external runtime dependencies)
-
-### Development Commands
-
-```bash
-# Install development dependencies
-uv sync --dev
-
-# Run tests with coverage
-uv run pytest
-
-# Run linting
-uv run ruff check .
-
-# Format code
-uv run ruff format .
-
-# Run all quality checks
-uv run ruff check . && uv run ruff format . && uv run pytest
-```
-
-### Git Integration Patterns
-
-The tool uses `git rev-parse --absolute-git-dir` to handle:
-- Regular repositories
-- Submodules (`.git` file pointing to actual git directory)
+**Git Integration**: Uses `git rev-parse --absolute-git-dir` to handle all git repository types:
+- Regular repositories (.git directory)
+- Submodules (.git file pointing to actual git directory)
 - Worktrees (separate working directories)
+
+**Error Handling**: Consolidated to use `anyhow` throughout for consistent error propagation and context.
+
+**Validation Architecture**: Two-phase validation system:
+- Pattern validation happens at CLI level with user-friendly display
+- Core file operations skip validation (pre-validated by caller)
+- Library API has separate validation for programmatic usage
+
+**File Safety**: All file operations include path validation to prevent directory traversal and ensure safe writes.
 
 ### Testing Strategy
 
-- **Unit Tests**: Mock git commands and file operations
-- **Integration Tests**: Use temporary git repositories
-- **Coverage Target**: >90% line coverage
-- **Test Data**: Include edge cases (empty files, duplicates, permissions)
+**Unit Tests**: Located in each module (`#[cfg(test)]`), test individual functions with mocked dependencies.
 
-### Module Development Order
+**Integration Tests**: In `tests/integration_tests.rs`, use `assert_cmd` to test the full CLI with temporary git repositories.
 
-1. git_utils.py → test → review
-2. ignore_manager.py → test → review
-3. main.py → test → review
-4. integration tests → review
+**Test Structure**:
+- `init_git_repo()` helper creates temporary git repos for testing
+- `git_ignore_cmd()` helper provides access to the compiled binary
+- Tests cover success paths, error conditions, and edge cases
 
-## CLI Design
+### Dependencies
 
-```bash
-git-ignore pattern1 pattern2 ...    # Add to .gitignore
-git-ignore --local pattern1         # Add to .git/info/exclude
-git-ignore --global pattern1        # Add to global gitignore
-```
+**Runtime Dependencies**:
+- `clap` (v4.4): CLI argument parsing with derive macros
+- `anyhow` (v1.0): Error handling and context
 
-## Error Handling
+**Development Dependencies**:
+- `assert_cmd` (v2.0): Command-line integration testing
+- `predicates` (v3.0): Assertion helpers for test output
+- `tempfile` (v3.8): Temporary directory/file creation for tests
 
-- Non-git directories: Clear error message
-- Permission issues: Helpful error with suggested fixes
-- Invalid patterns: Warning but continue with valid ones
+### Minimum Supported Rust Version
+
+MSRV: 1.74.0 (due to clap v4.4 requirements)
+Matrix tested on: stable, beta, and 1.74.0 across Linux/Windows/macOS
+
+## Git Integration Patterns
+
+The tool uses `git rev-parse --absolute-git-dir` to robustly handle:
+- Regular repositories
+- Git submodules (`.git` file pointing to actual git directory)
+- Git worktrees (separate working directories sharing git data)
+
+Path resolution functions in `git.rs` cache successful results to avoid repeated git command execution.
