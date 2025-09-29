@@ -131,7 +131,7 @@ pub fn write_ignore_patterns(
 
     let mut writer = BufWriter::new(&mut file);
     for pattern in sanitized_patterns {
-        writeln!(writer, "{}", pattern)
+        writeln!(writer, "{pattern}")
             .with_context(|| format!("Failed to write pattern to: {}", file_path.display()))?;
     }
 
@@ -307,7 +307,7 @@ mod tests {
         let mut temp_file = NamedTempFile::new().unwrap();
         writeln!(temp_file, "*.pyc").unwrap();
         writeln!(temp_file, "# comment").unwrap();
-        writeln!(temp_file, "").unwrap();
+        writeln!(temp_file).unwrap();
         writeln!(temp_file, "__pycache__/").unwrap();
 
         let patterns = read_ignore_patterns(temp_file.path()).unwrap();

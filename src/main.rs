@@ -197,10 +197,7 @@ fn run() -> anyhow::Result<()> {
     let file_description = get_file_description(&target_file, local, global);
 
     if added_patterns.is_empty() {
-        println!(
-            "No new patterns added to {} (all patterns already exist)",
-            file_description
-        );
+        println!("No new patterns added to {file_description} (all patterns already exist)");
         return Ok(());
     }
 
@@ -217,7 +214,7 @@ fn run() -> anyhow::Result<()> {
         file_description
     );
     for pattern in &added_patterns {
-        println!("  {}", pattern);
+        println!("  {pattern}");
     }
 
     Ok(())
@@ -238,22 +235,22 @@ fn main() {
                 || error_str.contains("Failed to find repository root")
                 || error_str.contains("Git not found in PATH")
             {
-                eprintln!("Git error while determining target file: {}", e);
+                eprintln!("Git error while determining target file: {e}");
                 EXIT_GIT_ERROR
             } else if error_str.contains("No global gitignore")
                 || error_str.contains("Configuration error")
             {
-                eprintln!("Configuration error: {}", e);
+                eprintln!("Configuration error: {e}");
                 EXIT_CONFIG_ERROR
             } else if error_str.contains("Permission denied")
                 || error_str.contains("Failed to write")
                 || error_str.contains("Failed to read")
                 || error_str.contains("Failed to create")
             {
-                eprintln!("File system error: {}", e);
+                eprintln!("File system error: {e}");
                 EXIT_FILE_ERROR
             } else {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
                 EXIT_FILE_ERROR
             };
 
