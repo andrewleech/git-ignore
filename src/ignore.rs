@@ -4,7 +4,7 @@ use crate::{IgnoreError, PatternIssue, PatternSeverity, PatternValidationLevel};
 use std::{
     collections::HashSet,
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, BufWriter, Write, Read, Seek, SeekFrom},
+    io::{BufRead, BufReader, BufWriter, Write},
     path::Path,
 };
 
@@ -16,17 +16,23 @@ fn sanitize_pattern(pattern: &str) -> String {
 
 /// Validate that file path is safe to write to
 fn validate_file_path(file_path: &Path, base_dir: Option<&Path>) -> Result<(), IgnoreError> {
-    let resolved = file_path.canonicalize().or_else(|_| {
-        // If file doesn't exist, try to canonicalize parent directory
-        if let Some(parent) = file_path.parent() {
-            parent.canonicalize().map(|p| p.join(file_path.file_name().unwrap()))
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Invalid file path",
-            ))
-        }
-    }).map_err(|_| IgnoreError::InvalidPath {
+    let resolved = if file_path.exists() {
+        file_path.canonicalize()
+    } else if let Some(parent) = file_path.parent() {
+        parent.canonicalize().and_then(|p| {
+            file_path.file_name()
+                .ok_or_else(|| std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Invalid file path"
+                ))
+                .map(|name| p.join(name))
+        })
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid file path"
+        ))
+    }.map_err(|_| IgnoreError::InvalidPath {
         path: file_path.to_path_buf()
     })?;
 
@@ -125,37 +131,11 @@ pub fn write_ignore_patterns(
     })?;
 
     // Handle newline for append mode
-    if append {
-        let metadata = file.metadata().map_err(|e| IgnoreError::WriteFailed {
+    if append && file.metadata().map(|m| m.len()).unwrap_or(0) > 0 {
+        writeln!(file).map_err(|e| IgnoreError::WriteFailed {
             path: file_path.to_path_buf(),
             source: e,
         })?;
-
-        if metadata.len() > 0 {
-            // Check if file ends with newline
-            file.seek(SeekFrom::End(-1)).map_err(|e| IgnoreError::WriteFailed {
-                path: file_path.to_path_buf(),
-                source: e,
-            })?;
-
-            let mut buf = [0u8; 1];
-            file.read_exact(&mut buf).map_err(|e| IgnoreError::WriteFailed {
-                path: file_path.to_path_buf(),
-                source: e,
-            })?;
-
-            file.seek(SeekFrom::End(0)).map_err(|e| IgnoreError::WriteFailed {
-                path: file_path.to_path_buf(),
-                source: e,
-            })?;
-
-            if buf[0] != b'\n' {
-                writeln!(file).map_err(|e| IgnoreError::WriteFailed {
-                    path: file_path.to_path_buf(),
-                    source: e,
-                })?;
-            }
-        }
     }
 
     let mut writer = BufWriter::new(&mut file);

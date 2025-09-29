@@ -15,7 +15,7 @@ static GIT_DIR_CACHE: OnceLock<Result<PathBuf, GitError>> = OnceLock::new();
 static REPO_ROOT_CACHE: OnceLock<Result<PathBuf, GitError>> = OnceLock::new();
 
 /// Execute git command and return stdout
-fn run_git_command(args: &[&str], _timeout_secs: u64) -> Result<String, GitError> {
+fn run_git_command(args: &[&str]) -> Result<String, GitError> {
     let output = Command::new("git")
         .args(args)
         .output()
@@ -56,7 +56,7 @@ fn validate_git_path(path: &Path) -> Result<PathBuf, GitError> {
 pub fn get_git_dir() -> Result<PathBuf, GitError> {
     GIT_DIR_CACHE
         .get_or_init(|| {
-            let output = run_git_command(&["rev-parse", "--absolute-git-dir"], 5)?;
+            let output = run_git_command(&["rev-parse", "--absolute-git-dir"])?;
             let path = PathBuf::from(output);
             validate_git_path(&path)
         })
@@ -69,7 +69,7 @@ pub fn get_git_dir() -> Result<PathBuf, GitError> {
 pub fn get_repo_root() -> Result<PathBuf, GitError> {
     REPO_ROOT_CACHE
         .get_or_init(|| {
-            let output = run_git_command(&["rev-parse", "--show-toplevel"], 5)?;
+            let output = run_git_command(&["rev-parse", "--show-toplevel"])?;
             let path = PathBuf::from(output);
             validate_git_path(&path)
         })
@@ -81,7 +81,7 @@ pub fn get_repo_root() -> Result<PathBuf, GitError> {
 /// Get path to global gitignore file
 pub fn get_global_gitignore_path() -> Option<PathBuf> {
     // Try to get configured global gitignore
-    if let Ok(output) = run_git_command(&["config", "--global", "core.excludesfile"], 5) {
+    if let Ok(output) = run_git_command(&["config", "--global", "core.excludesfile"]) {
         let path = PathBuf::from(output);
         let expanded = if path.starts_with("~") {
             if let Some(home) = env::var_os("HOME") {
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_run_git_command_failure() {
-        let result = run_git_command(&["nonexistent-command"], 1);
+        let result = run_git_command(&["nonexistent-command"]);
         assert!(result.is_err());
     }
 
