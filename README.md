@@ -1,8 +1,8 @@
 # git-ignore
 
 [![CI/CD Pipeline](https://github.com/andrewleech/git-ignore/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/andrewleech/git-ignore/actions/workflows/ci-cd.yml)
-[![PyPI version](https://badge.fury.io/py/git-ignore.svg)](https://badge.fury.io/py/git-ignore)
-[![Python versions](https://img.shields.io/pypi/pyversions/git-ignore.svg)](https://pypi.org/project/git-ignore/)
+[![Crates.io](https://img.shields.io/crates/v/git-ignore.svg)](https://crates.io/crates/git-ignore)
+[![Rust versions](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://forge.rust-lang.org/infra/channel-releases.html)
 
 A command-line tool for easily adding patterns to git ignore files. Supports adding patterns to `.gitignore`, `.git/info/exclude`, or global gitignore files with validation and duplicate detection.
 
@@ -166,61 +166,60 @@ fi
 ### Setup
 
 ```bash
-git clone https://github.com/user/git-ignore.git
+git clone https://github.com/andrewleech/git-ignore.git
 cd git-ignore
-uv sync --dev
+cargo build
 ```
 
 ### Running Tests
 
 ```bash
 # Unit tests
-uv run pytest tests/unit/
+cargo test --lib
 
 # Integration tests
-uv run pytest tests/integration/
+cargo test --test integration_tests
 
-# All tests with coverage
-uv run pytest --cov=src/git_ignore --cov-report=html
+# All tests
+cargo test
 ```
 
 ### Code Quality
 
 ```bash
 # Linting
-uv run ruff check .
+cargo clippy -- -D warnings
 
 # Formatting
-uv run ruff format .
+cargo fmt --check
 
-# Type checking (if using mypy)
-uv run mypy src/
+# Full check
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 ### Building
 
 ```bash
-# Build wheel and source distribution
-uv build
+# Build release binary
+cargo build --release
 
-# Test the built package
-pip install dist/*.whl
-git-ignore --version
+# Test the built binary
+./target/release/git-ignore --version
 ```
 
 ## Architecture
 
 The project consists of three main modules:
 
-- **`git_utils.py`**: Git repository detection and path resolution
-- **`ignore_manager.py`**: Core ignore file operations (reading, writing, validation)
-- **`main.py`**: CLI interface and argument parsing
+- **`git.rs`**: Git repository detection and path resolution
+- **`ignore.rs`**: Core ignore file operations (reading, writing, validation)
+- **`main.rs`**: CLI interface and argument parsing
 
 See [CLAUDE.md](CLAUDE.md) for detailed development information.
 
 ## Supported Platforms
 
-- **Python**: 3.9, 3.10, 3.11, 3.12
+- **Rust**: 1.70.0+
 - **Operating Systems**: Linux, macOS, Windows
 - **Git**: Any version with `git rev-parse` support
 
