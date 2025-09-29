@@ -2,7 +2,7 @@
 
 use clap::{Arg, ArgAction, Command};
 use git_ignore::{
-    git, ignore, GitError, PatternIssue, PatternSeverity, PatternValidationLevel,
+    git, ignore, PatternIssue, PatternSeverity, PatternValidationLevel,
 };
 use std::{
     env, io::{self, Write},
@@ -173,23 +173,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Determine target file
-    let target_file = get_target_file(local, global).map_err(|e| {
-        match e.to_string().as_str() {
-            s if s.contains("Not in a git repository") => {
-                Box::new(GitError::NotInRepository {
-                    cwd: env::current_dir().unwrap_or_default(),
-                    message: s.to_string(),
-                }) as Box<dyn std::error::Error>
-            }
-            s if s.contains("No global gitignore") => {
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    s,
-                )) as Box<dyn std::error::Error>
-            }
-            _ => e,
-        }
-    })?;
+    let target_file = get_target_file(local, global)?;
 
     // Ensure exclude file exists if targeting local
     if local {
