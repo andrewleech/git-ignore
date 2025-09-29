@@ -11,7 +11,7 @@ documentation = "https://github.com/andrewleech/git-ignore"
 readme = "README.md"
 keywords = ["git", "gitignore", "cli", "development-tools"]
 categories = ["command-line-utilities", "development-tools"]
-rust-version = "1.70"
+rust-version = "1.74"
 
 [[bin]]
 name = "git-ignore"
