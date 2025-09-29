@@ -21,26 +21,31 @@ fn validate_file_path(file_path: &Path, base_dir: Option<&Path>) -> anyhow::Resu
         file_path.canonicalize()
     } else if let Some(parent) = file_path.parent() {
         parent.canonicalize().and_then(|p| {
-            file_path.file_name()
-                .ok_or_else(|| std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Invalid file path"
-                ))
+            file_path
+                .file_name()
+                .ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid file path")
+                })
                 .map(|name| p.join(name))
         })
     } else {
         Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "Invalid file path"
+            "Invalid file path",
         ))
-    }.with_context(|| format!("Invalid file path: {}", file_path.display()))?;
+    }
+    .with_context(|| format!("Invalid file path: {}", file_path.display()))?;
 
     if let Some(base) = base_dir {
-        let base_resolved = base.canonicalize()
+        let base_resolved = base
+            .canonicalize()
             .with_context(|| format!("Invalid base directory: {}", base.display()))?;
 
         if !resolved.starts_with(&base_resolved) {
-            bail!("File path {} is outside allowed directory", file_path.display());
+            bail!(
+                "File path {} is outside allowed directory",
+                file_path.display()
+            );
         }
     }
 
@@ -60,8 +65,8 @@ pub fn read_ignore_patterns(file_path: &Path) -> anyhow::Result<HashSet<String>>
     let mut patterns = HashSet::new();
 
     for line in reader.lines() {
-        let line = line
-            .with_context(|| format!("Failed to read line from: {}", file_path.display()))?;
+        let line =
+            line.with_context(|| format!("Failed to read line from: {}", file_path.display()))?;
 
         let trimmed = line.trim();
 
@@ -115,19 +120,24 @@ pub fn write_ignore_patterns(
             .write(true)
             .truncate(true)
             .open(file_path)
-    }.with_context(|| format!("Failed to write to: {}", file_path.display()))?;
+    }
+    .with_context(|| format!("Failed to write to: {}", file_path.display()))?;
 
     // Handle newline for append mode
     if append && file.metadata().map(|m| m.len()).unwrap_or(0) > 0 {
-        writeln!(file).with_context(|| format!("Failed to write newline to: {}", file_path.display()))?;
+        writeln!(file)
+            .with_context(|| format!("Failed to write newline to: {}", file_path.display()))?;
     }
 
     let mut writer = BufWriter::new(&mut file);
     for pattern in sanitized_patterns {
-        writeln!(writer, "{}", pattern).with_context(|| format!("Failed to write pattern to: {}", file_path.display()))?;
+        writeln!(writer, "{}", pattern)
+            .with_context(|| format!("Failed to write pattern to: {}", file_path.display()))?;
     }
 
-    writer.flush().with_context(|| format!("Failed to flush writes to: {}", file_path.display()))?;
+    writer
+        .flush()
+        .with_context(|| format!("Failed to flush writes to: {}", file_path.display()))?;
 
     Ok(())
 }
@@ -182,7 +192,8 @@ pub fn validate_ignore_patterns(patterns: &[String]) -> Vec<PatternIssue> {
             issues.push(PatternIssue {
                 pattern: original_pattern.clone(),
                 severity: PatternSeverity::Error,
-                message: "Pattern contains newline characters which will corrupt the ignore file".to_string(),
+                message: "Pattern contains newline characters which will corrupt the ignore file"
+                    .to_string(),
             });
         }
 
@@ -191,7 +202,8 @@ pub fn validate_ignore_patterns(patterns: &[String]) -> Vec<PatternIssue> {
             issues.push(PatternIssue {
                 pattern: pattern.clone(),
                 severity: PatternSeverity::Info,
-                message: "Pattern has leading and trailing slashes - might be too restrictive".to_string(),
+                message: "Pattern has leading and trailing slashes - might be too restrictive"
+                    .to_string(),
             });
         }
 
@@ -207,7 +219,8 @@ pub fn validate_ignore_patterns(patterns: &[String]) -> Vec<PatternIssue> {
             issues.push(PatternIssue {
                 pattern: pattern.clone(),
                 severity: PatternSeverity::Warning,
-                message: "Pattern contains multiple '**' which may not work as expected".to_string(),
+                message: "Pattern contains multiple '**' which may not work as expected"
+                    .to_string(),
             });
         }
 
@@ -221,7 +234,10 @@ pub fn validate_ignore_patterns(patterns: &[String]) -> Vec<PatternIssue> {
         }
 
         // Check for patterns that might ignore important files
-        if matches!(pattern.as_str(), ".git" | ".gitignore" | "README*" | "LICENSE*") {
+        if matches!(
+            pattern.as_str(),
+            ".git" | ".gitignore" | "README*" | "LICENSE*"
+        ) {
             issues.push(PatternIssue {
                 pattern: pattern.clone(),
                 severity: PatternSeverity::Warning,
@@ -254,8 +270,12 @@ pub fn ensure_info_exclude_exists(exclude_file_path: &Path) -> anyhow::Result<()
 # *~
 "#;
 
-    std::fs::write(exclude_file_path, template)
-        .with_context(|| format!("Failed to initialize exclude file: {}", exclude_file_path.display()))?;
+    std::fs::write(exclude_file_path, template).with_context(|| {
+        format!(
+            "Failed to initialize exclude file: {}",
+            exclude_file_path.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -263,8 +283,8 @@ pub fn ensure_info_exclude_exists(exclude_file_path: &Path) -> anyhow::Result<()
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::{NamedTempFile, TempDir};
     use std::{io::Write, path::PathBuf};
+    use tempfile::{NamedTempFile, TempDir};
 
     #[test]
     fn test_sanitize_pattern() {

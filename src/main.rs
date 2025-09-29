@@ -1,11 +1,10 @@
 //! Main CLI module for git-ignore tool
 
 use clap::{Arg, ArgAction, Command};
-use git_ignore::{
-    git, ignore, PatternIssue, PatternSeverity, PatternValidationLevel,
-};
+use git_ignore::{git, ignore, PatternIssue, PatternSeverity, PatternValidationLevel};
 use std::{
-    env, io::{self, Write},
+    env,
+    io::{self, Write},
     process,
 };
 
@@ -28,40 +27,40 @@ fn create_parser() -> Command {
             "Examples:\n  \
             git-ignore '*.pyc' '__pycache__/'     # Add to .gitignore\n  \
             git-ignore --local build/             # Add to .git/info/exclude\n  \
-            git-ignore --global '*.log'           # Add to global gitignore"
+            git-ignore --global '*.log'           # Add to global gitignore",
         )
         .arg(
             Arg::new("patterns")
                 .help("Patterns to add to ignore file")
                 .value_name("PATTERN")
                 .required(true)
-                .num_args(1..)
+                .num_args(1..),
         )
         .arg(
             Arg::new("local")
                 .long("local")
                 .short('l')
                 .help("Add patterns to .git/info/exclude instead of .gitignore")
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("global")
                 .long("global")
                 .short('g')
                 .help("Add patterns to global gitignore file")
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("no-validate")
                 .long("no-validate")
                 .help("Skip pattern validation")
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("allow-duplicates")
                 .long("allow-duplicates")
                 .help("Allow duplicate patterns to be added")
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::SetTrue),
         )
 }
 
@@ -72,9 +71,18 @@ fn display_validation_issues(issues: &[PatternIssue]) {
     }
 
     let mut stderr = io::stderr();
-    let errors: Vec<_> = issues.iter().filter(|i| i.severity == PatternSeverity::Error).collect();
-    let warnings: Vec<_> = issues.iter().filter(|i| i.severity == PatternSeverity::Warning).collect();
-    let infos: Vec<_> = issues.iter().filter(|i| i.severity == PatternSeverity::Info).collect();
+    let errors: Vec<_> = issues
+        .iter()
+        .filter(|i| i.severity == PatternSeverity::Error)
+        .collect();
+    let warnings: Vec<_> = issues
+        .iter()
+        .filter(|i| i.severity == PatternSeverity::Warning)
+        .collect();
+    let infos: Vec<_> = issues
+        .iter()
+        .filter(|i| i.severity == PatternSeverity::Info)
+        .collect();
 
     if !errors.is_empty() {
         writeln!(stderr, "ERROR: Found problematic patterns:").unwrap();
@@ -108,10 +116,7 @@ fn has_blocking_issues(issues: &[PatternIssue]) -> bool {
 }
 
 /// Get target file path based on arguments
-fn get_target_file(
-    local: bool,
-    global: bool,
-) -> anyhow::Result<std::path::PathBuf> {
+fn get_target_file(local: bool, global: bool) -> anyhow::Result<std::path::PathBuf> {
     if local && global {
         anyhow::bail!("Cannot specify both --local and --global");
     }

@@ -31,15 +31,18 @@ fn validate_patterns_for_library(
 
     let issues = ignore::validate_ignore_patterns(patterns);
     let has_errors = issues.iter().any(|i| i.severity == PatternSeverity::Error);
-    let has_warnings = issues.iter().any(|i| i.severity == PatternSeverity::Warning);
+    let has_warnings = issues
+        .iter()
+        .any(|i| i.severity == PatternSeverity::Warning);
 
     if has_errors || (validation_level == PatternValidationLevel::Strict && has_warnings) {
         // For library usage, we collect all issues into the error message
         let error_messages: Vec<String> = issues
             .iter()
             .filter(|issue| {
-                issue.severity == PatternSeverity::Error ||
-                (validation_level == PatternValidationLevel::Strict && issue.severity == PatternSeverity::Warning)
+                issue.severity == PatternSeverity::Error
+                    || (validation_level == PatternValidationLevel::Strict
+                        && issue.severity == PatternSeverity::Warning)
             })
             .map(|issue| format!("{}: {}", issue.pattern, issue.message))
             .collect();
@@ -87,7 +90,12 @@ pub fn add_patterns_to_gitignore(
 ) -> anyhow::Result<Vec<String>> {
     validate_patterns_for_library(patterns, validation_level)?;
     let gitignore_path = git::get_gitignore_path()?;
-    ignore::add_patterns_to_ignore_file(&gitignore_path, patterns, true, PatternValidationLevel::None)
+    ignore::add_patterns_to_ignore_file(
+        &gitignore_path,
+        patterns,
+        true,
+        PatternValidationLevel::None,
+    )
 }
 
 /// Add patterns to local .git/info/exclude file

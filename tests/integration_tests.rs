@@ -1,9 +1,9 @@
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
-use std::process::Command;
-use tempfile::TempDir;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
+use tempfile::TempDir;
 
 /// Initialize a temporary git repository for testing
 fn init_git_repo(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -90,7 +90,9 @@ fn test_duplicate_prevention() -> Result<(), Box<dyn std::error::Error>> {
         .current_dir(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("No new patterns added to .gitignore ("));
+        .stdout(predicate::str::contains(
+            "No new patterns added to .gitignore (",
+        ));
 
     Ok(())
 }
@@ -128,7 +130,9 @@ fn test_local_exclude_file() -> Result<(), Box<dyn std::error::Error>> {
         .current_dir(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("Added 1 pattern to .git/info/exclude ("));
+        .stdout(predicate::str::contains(
+            "Added 1 pattern to .git/info/exclude (",
+        ));
 
     let exclude_path = temp_dir.path().join(".git").join("info").join("exclude");
     let content = fs::read_to_string(exclude_path)?;
@@ -149,8 +153,12 @@ fn test_pattern_validation() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .failure()
         .code(1)
-        .stderr(predicate::str::contains("ERROR: Found problematic patterns:"))
-        .stderr(predicate::str::contains("Pattern contains newline characters"));
+        .stderr(predicate::str::contains(
+            "ERROR: Found problematic patterns:",
+        ))
+        .stderr(predicate::str::contains(
+            "Pattern contains newline characters",
+        ));
 
     Ok(())
 }
@@ -182,7 +190,9 @@ fn test_outside_git_repo() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .failure()
         .code(2)
-        .stderr(predicate::str::contains("Git error while determining target file"));
+        .stderr(predicate::str::contains(
+            "Git error while determining target file",
+        ));
 
     Ok(())
 }
@@ -197,7 +207,9 @@ fn test_conflicting_flags() -> Result<(), Box<dyn std::error::Error>> {
         .current_dir(temp_dir.path())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Cannot specify both --local and --global"));
+        .stderr(predicate::str::contains(
+            "Cannot specify both --local and --global",
+        ));
 
     Ok(())
 }

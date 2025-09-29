@@ -25,7 +25,11 @@ fn run_git_command(args: &[&str]) -> anyhow::Result<String> {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
-        bail!("Not in a git repository (cwd: {}): {}", cwd.display(), stderr.trim());
+        bail!(
+            "Not in a git repository (cwd: {}): {}",
+            cwd.display(),
+            stderr.trim()
+        );
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -40,7 +44,8 @@ fn run_git_command(args: &[&str]) -> anyhow::Result<String> {
 
 /// Validate that git returned a reasonable path
 fn validate_git_path(path: &Path) -> anyhow::Result<PathBuf> {
-    let resolved = path.canonicalize()
+    let resolved = path
+        .canonicalize()
         .with_context(|| format!("Invalid path returned by git: {}", path.display()))?;
 
     Ok(resolved)
