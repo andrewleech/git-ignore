@@ -137,32 +137,14 @@ pub fn add_patterns_to_ignore_file(
     file_path: &Path,
     new_patterns: &[String],
     avoid_duplicates: bool,
-    validation_level: PatternValidationLevel,
+    _validation_level: PatternValidationLevel,
 ) -> anyhow::Result<Vec<String>> {
     if new_patterns.is_empty() {
         return Ok(Vec::new());
     }
 
-    // Validate patterns if requested
-    if validation_level != PatternValidationLevel::None {
-        let issues = validate_ignore_patterns(new_patterns);
-        let has_errors = issues.iter().any(|i| i.severity == PatternSeverity::Error);
-        let has_warnings = issues.iter().any(|i| i.severity == PatternSeverity::Warning);
-
-        if !issues.is_empty() {
-            for issue in &issues {
-                match issue.severity {
-                    PatternSeverity::Error => eprintln!("ERROR: {}: {}", issue.pattern, issue.message),
-                    PatternSeverity::Warning => eprintln!("WARNING: {}: {}", issue.pattern, issue.message),
-                    PatternSeverity::Info => eprintln!("INFO: {}: {}", issue.pattern, issue.message),
-                }
-            }
-        }
-
-        if has_errors || (validation_level == PatternValidationLevel::Strict && has_warnings) {
-            bail!("Pattern validation failed");
-        }
-    }
+    // Skip validation - patterns should be pre-validated by caller
+    // The validation_level parameter is kept for API compatibility
 
     let existing_patterns = if avoid_duplicates {
         read_ignore_patterns(file_path)?

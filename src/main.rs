@@ -180,12 +180,12 @@ fn run() -> anyhow::Result<()> {
         ignore::ensure_info_exclude_exists(&target_file)?;
     }
 
-    // Add patterns to the target file
+    // Add patterns to the target file (validation already done above)
     let added_patterns = ignore::add_patterns_to_ignore_file(
         &target_file,
         &patterns,
         !allow_duplicates,
-        validation_level,
+        PatternValidationLevel::None,
     )?;
 
     // Report results
