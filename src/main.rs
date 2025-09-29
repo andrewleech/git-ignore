@@ -1,7 +1,7 @@
 //! Main CLI module for git-ignore tool
 
 use clap::{Arg, ArgAction, Command};
-use git_ignore::{git, ignore, PatternIssue, PatternSeverity, PatternValidationLevel};
+use git_ignore_tool::{git, ignore, PatternIssue, PatternSeverity, PatternValidationLevel};
 use std::{
     env,
     io::{self, Write},

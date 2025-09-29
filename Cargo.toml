@@ -1,5 +1,5 @@
 [package]
-name = "git-ignore"
+name = "git-ignore-tool"
 version = "1.0.0"
 edition = "2021"
 description = "A command-line tool to add patterns to git ignore files"

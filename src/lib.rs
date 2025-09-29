@@ -8,7 +8,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use git_ignore::{add_patterns_to_gitignore, PatternValidationLevel};
+//! use git_ignore_tool::{add_patterns_to_gitignore, PatternValidationLevel};
 //!
 //! let patterns = vec!["*.log".to_string(), "build/".to_string()];
 //! add_patterns_to_gitignore(&patterns, PatternValidationLevel::Warn)?;

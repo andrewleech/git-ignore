@@ -1,8 +1,8 @@
 # git-ignore
 
 [![CI/CD Pipeline](https://github.com/andrewleech/git-ignore/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/andrewleech/git-ignore/actions/workflows/ci-cd.yml)
-[![Crates.io](https://img.shields.io/crates/v/git-ignore.svg)](https://crates.io/crates/git-ignore)
-[![Rust versions](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://forge.rust-lang.org/infra/channel-releases.html)
+[![Crates.io](https://img.shields.io/crates/v/git-ignore-tool.svg)](https://crates.io/crates/git-ignore-tool)
+[![Rust versions](https://img.shields.io/badge/rust-1.74%2B-blue.svg)](https://forge.rust-lang.org/infra/channel-releases.html)
 
 A command-line tool for easily adding patterns to git ignore files. Supports adding patterns to `.gitignore`, `.git/info/exclude`, or global gitignore files with validation and duplicate detection.
 
@@ -21,7 +21,7 @@ A command-line tool for easily adding patterns to git ignore files. Supports add
 
 **With cargo (fastest and most reliable):**
 ```bash
-cargo install git-ignore
+cargo install git-ignore-tool
 ```
 
 ### Pre-built binaries

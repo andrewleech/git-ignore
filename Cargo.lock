@@ -208,7 +208,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "git-ignore"
+name = "git-ignore-tool"
 version = "1.0.0"
 dependencies = [
  "anyhow",
