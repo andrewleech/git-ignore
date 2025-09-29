@@ -56,7 +56,7 @@ cargo test
 Add patterns to the repository's `.gitignore` file:
 
 ```bash
-git-ignore "*.pyc" "__pycache__/" "build/"
+git ignore "*.pyc" "__pycache__/" "build/"
 ```
 
 ### Target Specific Files
@@ -64,13 +64,13 @@ git-ignore "*.pyc" "__pycache__/" "build/"
 Add patterns to `.git/info/exclude` (not shared with others):
 
 ```bash
-git-ignore --local "*.tmp" "my-personal-notes.txt"
+git ignore --local "*.tmp" "my-personal-notes.txt"
 ```
 
 Add patterns to your global gitignore:
 
 ```bash
-git-ignore --global "*.log" ".DS_Store"
+git ignore --global "*.log" ".DS_Store"
 ```
 
 ### Options
@@ -86,31 +86,31 @@ git-ignore --global "*.log" ".DS_Store"
 
 ```bash
 # Add Python-specific patterns
-git-ignore "*.pyc" "*.pyo" "__pycache__/" ".pytest_cache/"
+git ignore "*.pyc" "*.pyo" "__pycache__/" ".pytest_cache/"
 
 # Add build artifacts (local only, not shared)
-git-ignore --local "build/" "dist/" "*.egg-info/"
+git ignore --local "build/" "dist/" "*.egg-info/"
 
 # Add OS-specific patterns globally
-git-ignore --global ".DS_Store" "Thumbs.db" "*.swp"
+git ignore --global ".DS_Store" "Thumbs.db" "*.swp"
 
 # Allow duplicates (useful for scripting)
-git-ignore --allow-duplicates "*.log"
+git ignore --allow-duplicates "*.log"
 
 # Skip validation for special patterns
-git-ignore --no-validate "*"
+git ignore --no-validate "*"
 ```
 
 ## Pattern Validation
 
-git-ignore automatically validates patterns and provides feedback:
+git ignore automatically validates patterns and provides feedback:
 
 - **ERROR**: Patterns that would corrupt the ignore file (e.g., containing newlines)
 - **WARNING**: Potentially problematic patterns (e.g., very broad patterns like `*`)
 - **INFO**: Patterns that could be simplified (e.g., `./file` → `file`)
 
 ```bash
-$ git-ignore "*"
+$ git ignore "*"
 WARNING: Potentially problematic patterns:
   *: Pattern is very broad and may ignore more than intended
 Added 1 pattern to repository gitignore (.gitignore):
@@ -148,12 +148,12 @@ touch ~/.config/git/ignore
 
 ### Integration with Scripts
 
-git-ignore is designed to work well in scripts:
+git ignore is designed to work well in scripts:
 
 ```bash
 #!/bin/bash
 # Add standard Python patterns
-if git-ignore "*.pyc" "__pycache__/" ".pytest_cache/"; then
+if git ignore "*.pyc" "__pycache__/" ".pytest_cache/"; then
     echo "Added Python ignore patterns"
 else
     echo "Failed to add patterns (exit code: $?)" >&2
