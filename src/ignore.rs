@@ -15,6 +15,20 @@ fn sanitize_pattern(pattern: &str) -> String {
     pattern.replace(['\n', '\r'], "").trim().to_string()
 }
 
+/// Normalize a pattern for duplicate comparison.
+///
+/// A trailing slash only restricts a gitignore pattern to matching
+/// directories; it doesn't change what directory it matches. Patterns that
+/// differ solely by a trailing slash (e.g. "build" and "build/") are treated
+/// as the same entry so one doesn't get added alongside the other.
+fn normalize_pattern_for_dedup(pattern: &str) -> &str {
+    if pattern == "/" {
+        pattern
+    } else {
+        pattern.strip_suffix('/').unwrap_or(pattern)
+    }
+}
+
 /// Validate that file path is safe to write to
 fn validate_file_path(file_path: &Path, base_dir: Option<&Path>) -> anyhow::Result<()> {
     let resolved = if file_path.exists() {
@@ -156,17 +170,29 @@ pub fn add_patterns_to_ignore_file(
     // Skip validation - patterns should be pre-validated by caller
     // The validation_level parameter is kept for API compatibility
 
-    let existing_patterns = if avoid_duplicates {
+    let mut seen: HashSet<String> = if avoid_duplicates {
         read_ignore_patterns(file_path)?
+            .into_iter()
+            .map(|p| normalize_pattern_for_dedup(&p).to_string())
+            .collect()
     } else {
         HashSet::new()
     };
 
-    let patterns_to_add: Vec<String> = new_patterns
-        .iter()
-        .map(|p| sanitize_pattern(p))
-        .filter(|p| !p.is_empty() && (!avoid_duplicates || !existing_patterns.contains(p)))
-        .collect();
+    let mut patterns_to_add = Vec::new();
+    for pattern in new_patterns {
+        let sanitized = sanitize_pattern(pattern);
+        if sanitized.is_empty() {
+            continue;
+        }
+        if avoid_duplicates {
+            let normalized = normalize_pattern_for_dedup(&sanitized).to_string();
+            if !seen.insert(normalized) {
+                continue;
+            }
+        }
+        patterns_to_add.push(sanitized);
+    }
 
     if !patterns_to_add.is_empty() {
         write_ignore_patterns(file_path, &patterns_to_add, true)?;
@@ -339,5 +365,57 @@ mod tests {
         let content = std::fs::read_to_string(&temp_file).unwrap();
         assert!(content.contains("*.pyc\n"));
         assert!(content.contains("__pycache__/\n"));
+    }
+
+    #[test]
+    fn test_normalize_pattern_for_dedup() {
+        assert_eq!(normalize_pattern_for_dedup("planning"), "planning");
+        assert_eq!(normalize_pattern_for_dedup("planning/"), "planning");
+        assert_eq!(normalize_pattern_for_dedup("/"), "/");
+        assert_eq!(normalize_pattern_for_dedup("/build/"), "/build");
+    }
+
+    #[test]
+    fn test_add_patterns_skips_trailing_slash_duplicate() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_file = temp_dir.path().join("test_ignore");
+
+        let added = add_patterns_to_ignore_file(
+            &temp_file,
+            &["planning".to_string()],
+            true,
+            PatternValidationLevel::Warn,
+        )
+        .unwrap();
+        assert_eq!(added, vec!["planning".to_string()]);
+
+        // "planning/" only differs from the already-present "planning" by a
+        // trailing slash, so it must be treated as a duplicate.
+        let added = add_patterns_to_ignore_file(
+            &temp_file,
+            &["planning/".to_string()],
+            true,
+            PatternValidationLevel::Warn,
+        )
+        .unwrap();
+        assert!(added.is_empty());
+
+        let content = std::fs::read_to_string(&temp_file).unwrap();
+        assert_eq!(content.matches("planning").count(), 1);
+    }
+
+    #[test]
+    fn test_add_patterns_skips_trailing_slash_duplicate_within_same_batch() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_file = temp_dir.path().join("test_ignore");
+
+        let added = add_patterns_to_ignore_file(
+            &temp_file,
+            &["planning".to_string(), "planning/".to_string()],
+            true,
+            PatternValidationLevel::Warn,
+        )
+        .unwrap();
+        assert_eq!(added, vec!["planning".to_string()]);
     }
 }

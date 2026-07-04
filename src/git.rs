@@ -11,6 +11,9 @@ use std::{
 /// Cache for git directory path
 static GIT_DIR_CACHE: OnceLock<PathBuf> = OnceLock::new();
 
+/// Cache for git common directory path
+static GIT_COMMON_DIR_CACHE: OnceLock<PathBuf> = OnceLock::new();
+
 /// Cache for repository root path
 static REPO_ROOT_CACHE: OnceLock<PathBuf> = OnceLock::new();
 
@@ -51,36 +54,63 @@ fn validate_git_path(path: &Path) -> anyhow::Result<PathBuf> {
     Ok(resolved)
 }
 
-/// Get the absolute path to the git directory (.git folder or file)
-pub fn get_git_dir() -> anyhow::Result<PathBuf> {
-    if let Some(cached) = GIT_DIR_CACHE.get() {
+/// Resolve a path-valued `git rev-parse <rev_parse_arg>` invocation, caching
+/// the validated result.
+fn cached_git_path(
+    cache: &OnceLock<PathBuf>,
+    rev_parse_arg: &str,
+    error_context: &'static str,
+) -> anyhow::Result<PathBuf> {
+    if let Some(cached) = cache.get() {
         return Ok(cached.clone());
     }
 
-    let output = run_git_command(&["rev-parse", "--absolute-git-dir"])
-        .context("Failed to find git directory")?;
+    let output = run_git_command(&["rev-parse", rev_parse_arg]).context(error_context)?;
     let path = PathBuf::from(output);
     let validated = validate_git_path(&path)?;
 
     // Only cache if we succeed
-    let _ = GIT_DIR_CACHE.set(validated.clone());
+    let _ = cache.set(validated.clone());
     Ok(validated)
+}
+
+/// Get the absolute path to the git directory (.git folder or file).
+///
+/// In a linked worktree, this is the worktree-private administrative
+/// directory (`.git/worktrees/<name>`), not the directory shared with the
+/// main repository and its other worktrees. For a file git reads from the
+/// shared location regardless of which worktree is active (e.g.
+/// `info/exclude`), use `get_git_common_dir` instead.
+pub fn get_git_dir() -> anyhow::Result<PathBuf> {
+    cached_git_path(
+        &GIT_DIR_CACHE,
+        "--absolute-git-dir",
+        "Failed to find git directory",
+    )
+}
+
+/// Get the absolute path to the git common directory.
+///
+/// In a linked worktree, `get_git_dir` returns the worktree-private
+/// administrative directory (`.git/worktrees/<name>`), but git reads
+/// `info/exclude` from the common directory shared by the main repository
+/// and all of its worktrees. Callers that need `info/exclude` must resolve
+/// it against this path rather than `get_git_dir`.
+pub fn get_git_common_dir() -> anyhow::Result<PathBuf> {
+    cached_git_path(
+        &GIT_COMMON_DIR_CACHE,
+        "--git-common-dir",
+        "Failed to find git common directory",
+    )
 }
 
 /// Get the absolute path to the repository root
 pub fn get_repo_root() -> anyhow::Result<PathBuf> {
-    if let Some(cached) = REPO_ROOT_CACHE.get() {
-        return Ok(cached.clone());
-    }
-
-    let output = run_git_command(&["rev-parse", "--show-toplevel"])
-        .context("Failed to find repository root")?;
-    let path = PathBuf::from(output);
-    let validated = validate_git_path(&path)?;
-
-    // Only cache if we succeed
-    let _ = REPO_ROOT_CACHE.set(validated.clone());
-    Ok(validated)
+    cached_git_path(
+        &REPO_ROOT_CACHE,
+        "--show-toplevel",
+        "Failed to find repository root",
+    )
 }
 
 /// Get path to global gitignore file
@@ -141,8 +171,8 @@ pub fn get_global_gitignore_path() -> Option<PathBuf> {
 
 /// Get path to repository's .git/info/exclude file
 pub fn get_exclude_file_path() -> anyhow::Result<PathBuf> {
-    let git_dir = get_git_dir()?;
-    Ok(git_dir.join("info").join("exclude"))
+    let git_common_dir = get_git_common_dir()?;
+    Ok(git_common_dir.join("info").join("exclude"))
 }
 
 /// Get path to repository's .gitignore file

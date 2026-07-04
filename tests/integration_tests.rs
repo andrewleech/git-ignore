@@ -267,3 +267,94 @@ fn test_info_exclude_template() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_trailing_slash_treated_as_duplicate() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    init_git_repo(temp_dir.path())?;
+
+    git_ignore_cmd()
+        .args(["--local", "planning"])
+        .current_dir(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Added 1 pattern to .git/info/exclude (",
+        ));
+
+    // "planning/" differs from the already-present "planning" only by a
+    // trailing slash, so it should be rejected as a duplicate.
+    git_ignore_cmd()
+        .args(["--local", "planning/"])
+        .current_dir(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "No new patterns added to .git/info/exclude (",
+        ));
+
+    let exclude_path = temp_dir.path().join(".git").join("info").join("exclude");
+    let content = fs::read_to_string(exclude_path)?;
+    assert_eq!(content.matches("planning").count(), 1);
+
+    Ok(())
+}
+
+#[test]
+fn test_local_exclude_file_in_worktree_is_respected_by_git_status(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let main_repo = temp_dir.path().join("main");
+    fs::create_dir(&main_repo)?;
+    init_git_repo(&main_repo)?;
+
+    fs::write(main_repo.join("README.md"), "test")?;
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(&main_repo)
+        .output()?;
+    Command::new("git")
+        .args(["commit", "-m", "initial commit"])
+        .current_dir(&main_repo)
+        .output()?;
+
+    let worktree_dir = temp_dir.path().join("worktree");
+    let worktree_output = Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            "feature",
+            worktree_dir.to_str().unwrap(),
+        ])
+        .current_dir(&main_repo)
+        .output()?;
+    assert!(
+        worktree_output.status.success(),
+        "worktree add failed: {}",
+        String::from_utf8_lossy(&worktree_output.stderr)
+    );
+
+    // info/exclude must land in the directory git status actually reads,
+    // not the worktree-private administrative directory.
+    git_ignore_cmd()
+        .args(["--local", "planning/"])
+        .current_dir(&worktree_dir)
+        .assert()
+        .success();
+
+    fs::create_dir(worktree_dir.join("planning"))?;
+    fs::write(worktree_dir.join("planning").join("notes.md"), "notes")?;
+
+    let status_output = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&worktree_dir)
+        .output()?;
+    let status = String::from_utf8_lossy(&status_output.stdout);
+    assert!(
+        !status.contains("planning"),
+        "expected planning/ to be ignored by git status, got: {status}"
+    );
+
+    Ok(())
+}
