@@ -119,17 +119,11 @@ pub fn get_global_gitignore_path() -> Option<PathBuf> {
     if let Ok(output) = run_git_command(&["config", "--global", "core.excludesfile"]) {
         let path = PathBuf::from(output);
         let expanded = if path.starts_with("~") {
-            if let Some(home) = env::var_os("HOME") {
-                PathBuf::from(home).join(path.strip_prefix("~").unwrap())
-            } else {
-                return None;
-            }
+            let home = env::var_os("HOME")?;
+            PathBuf::from(home).join(path.strip_prefix("~").unwrap())
         } else if !path.is_absolute() {
-            if let Some(home) = env::var_os("HOME") {
-                PathBuf::from(home).join(&path)
-            } else {
-                return None;
-            }
+            let home = env::var_os("HOME")?;
+            PathBuf::from(home).join(&path)
         } else {
             path
         };
